@@ -33,8 +33,8 @@ class MobilitySimulation(Simulation):
         self.num_steps = num_steps
         
         #initialize locations
-        self.locations = np.array([Location(idx, capacity =10) for idx,coords in \
-                            enumerate(range(grid_size**2))]).reshape((grid_size,grid_size))
+        self.locations = np.array([Location(idx, capacity =10) for idx in \
+                            range(grid_size**2)]).reshape((grid_size,grid_size))
         for i in range(grid_size):
             for j in range(grid_size):
                 self.locations[i][j].coords = (i,j)
@@ -95,7 +95,7 @@ class MobilitySimulation(Simulation):
 
         #global params
         fpath_params = os.path.join(self.dirname,'params.json')
-        global_params_to_ignore = ['locations','agents']
+        global_params_to_ignore = ['locations','agents','data']
         global_params = get_object_params(self,global_params_to_ignore)
         with open(fpath_params,'w') as f:
             json.dump(global_params,f)
