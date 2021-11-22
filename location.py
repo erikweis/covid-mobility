@@ -5,12 +5,14 @@ class Location:
         idx,
         coords = None,
         capacity=None,
-        agents=None
+        agents=None,
+        quality=None
     ):
 
         self.idx = idx
         self.coords = coords
         self.capacity = capacity
+        self.quality = quality
         if not agents:
             self.agents = []
 
@@ -22,9 +24,3 @@ class Location:
 
     def occupancy_rate(self):
         return len(self.agents)/self.capacity
-
-    def get_capacity(self):
-        return self.capacity
-
-    def set_capacity(self, value):
-        self.capacity = value
