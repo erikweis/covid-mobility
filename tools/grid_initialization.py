@@ -56,7 +56,7 @@ def main():
 def initialize_grid(size: int = 100,
                     smooth: int | bool = 5,
                     prune: int | bool = False,
-                    location: type(Location) = Location,
+                    location = Location,
                     dist_fx: callable = None,
                     capacity_fx: callable = None,
                     show_grid: bool = True,

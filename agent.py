@@ -10,12 +10,13 @@ class Agent:
         idx,
         location,
         **kwargs):
-        
+
         self.idx = idx
         self._location = location
         self._location.add_agent(self)
 
     def decide_to_move(self):
+
         if random.random() < 0.1:
             return True
         return False

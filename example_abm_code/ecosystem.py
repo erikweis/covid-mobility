@@ -14,7 +14,8 @@ from idea import Idea
 
 class Ecosystem:
 
-    def __init__(self,
+    def __init__(
+        self,
         num_people=30,
         num_seed_ideas=10,
         belief_strength_max = 10,
@@ -24,6 +25,8 @@ class Ecosystem:
         threshold_intrigued=0.6,
         num_initial_exposed_ideas=5):
         
+        
+
         #ideas
         ideas = [Idea(idx=i,length=12) for i in range(num_seed_ideas)]
         self._num_ideas = num_seed_ideas

@@ -17,6 +17,15 @@ from tools.utils import get_object_params
 
 class MobilitySimulation(Simulation):
 
+    """MobilitySimulation is the central class from running a mobility simulation.
+
+    To run, initialize the object, then call the method `run_simulation()`. To save the data,
+    call the `save_data()` method.
+
+    This class extents the `Simulation` object from abm-parameter-sweep, such that it can
+    be used with that package to run multiple simulations automatically.
+    """
+
     def __init__(
         self,
         dirname,
@@ -25,6 +34,9 @@ class MobilitySimulation(Simulation):
         num_steps:int = 500,
         **kwargs
     ): 
+
+        """[summary]
+        """
 
         self._dirname = dirname
 
@@ -51,16 +63,20 @@ class MobilitySimulation(Simulation):
         return self._dirname
 
 
+    def move_agent(self,agent):
+
+        old_loc, new_loc = agent.decide_where_to_move(self.locations)
+        agent.location = new_loc #update agent location
+        old_loc.remove_agent(agent) #remove agent from old location
+        new_loc.add_agent(agent) #add agent to new location
+
     def update(self):
 
         for agent in self.agents:
             if agent.decide_to_move():
-                old_loc, new_loc = agent.decide_where_to_move(self.locations)
-                agent.location = new_loc #update agent location
-                old_loc.remove_agent(agent) #remove agent from old location
-                new_loc.add_agent(agent) #add agent to new location
+                self.move_agent(agent)
 
-            self.data.append(agent.get_tidy_state())
+            self.data.append(agent.get_tidy_state()) #save state to data
 
 
     def run_simulation(self):
