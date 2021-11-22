@@ -177,10 +177,15 @@ def initialize_grid(size: int = 100,
 
     grid_init: list[list] = \
         [[None for _ in range(size)] for _ in range(size)]
+    idx = 0
     for i in range(size):
         for j in range(size):
             if dist_fx(i, j, size):
-                grid_init[i][j] = location(capacity_fx(i, j, size))
+                grid_init[i][j] = location(
+                    idx, (j, i),
+                    capacity_fx(i, j, size)
+                )
+                idx += 1
     grid: np.array = np.array(grid_init)
 
     if smooth:

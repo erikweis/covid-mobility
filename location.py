@@ -22,3 +22,9 @@ class Location:
 
     def occupancy_rate(self):
         return len(self.agents)/self.capacity
+
+    def get_capacity(self):
+        return self.capacity
+
+    def set_capacity(self, value):
+        self.capacity = value
