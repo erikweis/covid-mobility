@@ -1,17 +1,24 @@
+from __future__ import annotations
+
 from os import get_terminal_size, setregid
 import random
 
 from numpy import histogram
+
+from location import Location
+
 
 class Agent:
 
     def __init__(
         self,
         idx,
+        job,
         location,
         **kwargs):
 
         self.idx = idx
+        self.job = job
         self._location = location
         self._location.add_agent(self)
 
