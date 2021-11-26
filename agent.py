@@ -13,8 +13,8 @@ class Agent:
     def __init__(
         self,
         idx,
-        job,
         location,
+        job=None,
         **kwargs):
 
         self.idx = idx
