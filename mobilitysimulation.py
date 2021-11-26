@@ -141,7 +141,8 @@ if __name__ == "__main__":
     e = Experiment(
         MobilitySimulation,
         'random_movement_with_denis_initialization',
-        grid_size=[20,40,60,80,100],
+        root_dir = 'data',
+        grid_size=[20,40],
         num_steps = [100]
     )
     e.run_all_trials(debug=True)
