@@ -10,7 +10,6 @@ import numpy as np
 
 from location import Location
 
-
 def main():
     # With no smoothing, we get a perfect power law distribution for our
     # capacities, but there is no overall structure spatially:

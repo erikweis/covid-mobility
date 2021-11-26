@@ -13,7 +13,7 @@ from agent import Agent
 from job import Job
 from location import Location
 from tools.utils import get_object_params
-
+from tools.initialize_locations import initialize_grid
 
 class MobilitySimulation(Simulation):
 
@@ -45,12 +45,15 @@ class MobilitySimulation(Simulation):
         self.num_steps = num_steps
         
         #initialize locations
-        self.locations = np.array([Location(idx, capacity =10) for idx in \
-                            range(grid_size**2)]).reshape((grid_size,grid_size))
-        for i in range(grid_size):
-            for j in range(grid_size):
-                self.locations[i][j].coords = (i,j)
-                
+        # self.locations = np.array([Location(idx, capacity =10) for idx in \
+        #                     range(grid_size**2)]).reshape((grid_size,grid_size))
+        # for i in range(grid_size):
+        #     for j in range(grid_size):
+        #         self.locations[i][j].coords = (i,j)
+
+        grid, mean, std_dev, capacities = initialize_grid(size=20)
+        self.locations = grid
+
         #initialize agents
         self.agents = [Agent(idx=i,location=random.choice(self.locations.flatten())) for i in range(self.num_agents)]
 
@@ -135,8 +138,9 @@ if __name__ == "__main__":
 
     e = Experiment(
         MobilitySimulation,
-        'random_movement_experiment',
-        grid_size=[10,20,30]
+        'random_movement_with_denis_initialization',
+        grid_size=[10,20,30],
+        num_steps = [1000]
     )
     e.run_all_trials(debug=True)
 
