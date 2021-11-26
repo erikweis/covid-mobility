@@ -7,14 +7,13 @@ from numpy import histogram
 
 from location import Location
 
-
 class Agent:
 
     def __init__(
         self,
-        idx,
-        location,
-        job=None,
+        idx: int,
+        location: Location,
+        job =None,
         **kwargs):
 
         self.idx = idx

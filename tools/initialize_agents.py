@@ -8,8 +8,8 @@ from typing import Any
 
 import numpy as np
 
-import initialize_locations as il
-import initialize_qualities as iq
+from . import initialize_locations as il
+from . import initialize_qualities as iq
 
 from location import Location
 from agent import Agent
@@ -123,7 +123,7 @@ def default_agent_fx(i: int,
         salary = np.random.choice(salaries, replace=True, p=weights)
         job = Job(idx_current, salary)
         agents.append(Agent(
-            idx_current, job, location
+            idx_current, location, job=job
         ))
         idx_current += 1
 

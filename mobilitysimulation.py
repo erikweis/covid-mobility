@@ -1,5 +1,6 @@
 import random
 import numpy as np
+from numpy.lib.function_base import place
 from tqdm import tqdm
 import os
 import datetime
@@ -14,6 +15,7 @@ from job import Job
 from location import Location
 from tools.utils import get_object_params
 from tools.initialize_locations import initialize_grid
+from tools.initialize_agents import place_grid_agents
 
 class MobilitySimulation(Simulation):
 
@@ -51,11 +53,11 @@ class MobilitySimulation(Simulation):
         #     for j in range(grid_size):
         #         self.locations[i][j].coords = (i,j)
 
-        grid, mean, std_dev, capacities = initialize_grid(size=20)
+        #initialize grid and agents
+        grid, mean, std_dev, capacities = initialize_grid(size=grid_size)
+        grid, agents = place_grid_agents(grid)
         self.locations = grid
-
-        #initialize agents
-        self.agents = [Agent(idx=i,location=random.choice(self.locations.flatten())) for i in range(self.num_agents)]
+        self.agents = agents
 
         #data
         self.data = []
@@ -106,7 +108,7 @@ class MobilitySimulation(Simulation):
         
         #agents
         fpath_agents = os.path.join(self.dirname,'agents.jsonl')
-        agent_params_to_ignore = ['location_data']
+        agent_params_to_ignore = ['location_data','job']
         agent_params = [get_object_params(agent,agent_params_to_ignore) for agent in self.agents]
         lines = [json.dumps(ap) for ap in agent_params]
         with open(fpath_agents,'w') as f:
@@ -139,8 +141,8 @@ if __name__ == "__main__":
     e = Experiment(
         MobilitySimulation,
         'random_movement_with_denis_initialization',
-        grid_size=[10,20,30],
-        num_steps = [1000]
+        grid_size=[20,40,60,80,100],
+        num_steps = [100]
     )
     e.run_all_trials(debug=True)
 

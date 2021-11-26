@@ -8,7 +8,7 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
-import initialize_locations as il
+from . import initialize_locations as il
 from location import Location
 
 
