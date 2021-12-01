@@ -51,7 +51,7 @@ class Agent:
         score_income = coeff_income*(self.income**2)
 
         # very low income also means likely to move (getting kicked out)
-        s = 1-coeff_low_income*(1/self.income)
+        s = 1-coeff_low_income*(1/(self.income+1))
         score_low_income = 0 if s<0 else s
 
         # if living below means (in a rich area) or above means (a poor area), more likely to move
