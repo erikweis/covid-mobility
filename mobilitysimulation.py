@@ -110,6 +110,8 @@ class MobilitySimulation(Simulation):
         fpath_agents = os.path.join(self.dirname,'agents.jsonl')
         agent_params_to_ignore = ['location_data','job']
         agent_params = [get_object_params(agent,agent_params_to_ignore) for agent in self.agents]
+        for agent_dict,agent in zip(agent_params,self.agents):
+            agent_dict['income'] = int(agent.income)
         lines = [json.dumps(ap) for ap in agent_params]
         with open(fpath_agents,'w') as f:
             f.write('\n'.join(lines))
@@ -140,11 +142,11 @@ if __name__ == "__main__":
 
     e = Experiment(
         MobilitySimulation,
-        'movement2',
+        'movement1',
         root_dir = 'data',
-        grid_size=[30],
-        num_steps = [100],
-        num_agents = [1000]
+        grid_size=[10],
+        num_steps = [5],
+        num_agents = [500]
     )
     e.run_all_trials(debug=True)
 

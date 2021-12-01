@@ -69,6 +69,7 @@ class Agent:
         
         return (random.random() < self._score2moveprob(total_score))
 
+
     def decide_where_to_move(self,all_locations):
         
         # higher salary people have the resources to search more places
