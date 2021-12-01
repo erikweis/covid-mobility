@@ -55,9 +55,23 @@ class MobilitySimulation(Simulation):
 
         #initialize grid and agents
         grid, mean, std_dev, capacities = initialize_grid(size=grid_size)
-        grid, agents = place_grid_agents(grid)
         self.locations = grid
-        self.agents = agents
+        get_capacities = np.vectorize(lambda x:x.capacity)
+        capacities = get_capacities(grid)
+
+
+        #initialize agents
+        self.agents = []
+        for agentID in range(self.num_agents):
+            
+            loc = np.random.choice(grid.flatten(),p=capacities.flatten()/sum(capacities.flatten()))
+            job = Job(idx = agentID,salary=np.random.exponential(scale=30000))
+            a = Agent(agentID,loc,job)
+            self.agents.append(a)
+
+        # grid, agents = place_grid_agents(grid)
+        # self.locations = grid
+        # self.agents = agents
 
         #data
         self.data = []
