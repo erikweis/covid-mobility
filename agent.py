@@ -63,7 +63,7 @@ class Agent:
         #### calculate total score ####
         total_score = score_income + score_low_income + score_income_match + score_housing_cost
 
-        print(score_income, score_low_income, score_income_match, score_housing_cost)
+        #print("decision score", score_income, score_low_income, score_income_match, score_housing_cost)
         # normalization should be set such that the expected move rate overall matches
         # emperical data
         
@@ -118,7 +118,7 @@ class Agent:
         # mismatch in income lowers score
         score_median_income = coeff_median_income*abs(location.median_income()-self.income)
         
-        print("location scores", score_pop_dens,score_job_opp,score_median_income)
+        #print("location scores", score_pop_dens,score_job_opp,score_median_income)
 
         total_score = score_pop_dens + score_job_opp + score_median_income
 

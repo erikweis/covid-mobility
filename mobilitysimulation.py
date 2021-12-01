@@ -75,19 +75,19 @@ class MobilitySimulation(Simulation):
         old_loc.remove_agent(agent) #remove agent from old location
         new_loc.add_agent(agent) #add agent to new location
 
-    def update(self):
+    def update(self,t):
 
         for agent in self.agents:
             if agent.decide_to_move():
                 self.move_agent(agent)
 
-            self.data.append(agent.get_tidy_state()) #save state to data
+            self.data.append([t,*agent.get_tidy_state()]) #save state to data
 
 
     def run_simulation(self):
 
-        for i in tqdm(range(self.num_steps)):
-            self.update()
+        for t in tqdm(range(self.num_steps)):
+            self.update(t)
 
 
     def save_state(self):
@@ -125,7 +125,7 @@ class MobilitySimulation(Simulation):
         fpath_data = os.path.join(self.dirname,'data.csv')
         with open(fpath_data,'w') as csvfile:
             writer = csv.writer(csvfile,quoting=csv.QUOTE_MINIMAL)
-            writer.writerow(['time','agentID','xloc','yloc'])
+            writer.writerow(['time','agentID','locationID','xloc','yloc'])
             for row in self.data:
                 writer.writerow(row)
 
@@ -140,11 +140,11 @@ if __name__ == "__main__":
 
     e = Experiment(
         MobilitySimulation,
-        'movement1',
+        'movement2',
         root_dir = 'data',
-        grid_size=[5],
-        num_steps = [5],
-        num_agents = [100]
+        grid_size=[30],
+        num_steps = [100],
+        num_agents = [1000]
     )
     e.run_all_trials(debug=True)
 
