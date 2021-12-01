@@ -27,6 +27,56 @@ class SimulationAnalysis:
         for attr,value in params.items():
             self.__setattr__(attr,value)
 
+        #parse jsonl agent locations
+        with open(os.path.join(self.dirname,'agents.jsonl')) as f:
+            self.agents_df = pd.DataFrame([json.loads(s) for s in f.readlines()])
+            self.agents_df.rename(columns={'idx': 'agentID'}, inplace=True)
+
+        # Join agent and data.csv on idx
+        self.merged_df = pd.merge(self.df, self.agents_df, on='agentID')
+
+
+    def animation_boilerplate(self, df, fout_name):
+
+        if os.path.isfile(os.path.join(self.dirname, fout_name)):
+            print("file already created")
+            return None
+
+        data = np.zeros((self.num_steps,self.grid_size,self.grid_size),dtype=int)
+
+        for index, row in df.iterrows():
+            t = row['time']
+            x = row['xloc']
+            y = row['yloc']
+            data[t][y][x] += 1
+
+        fig, ax = plt.subplots()
+
+        im = ax.imshow(data[0])
+        ax.set_title('0')
+
+        def update(i):
+            im.set_array(data[i])
+            ax.set_title(f'Frame {i}')
+            return im,
+
+        anim = animation.FuncAnimation(fig, update,interval=100,frames=self.num_steps,repeat=True)
+
+        f = os.path.join(self.dirname,fout_name,'.mov')
+        #writergif = animation.PillowWriter(fps=20) 
+        writervideo = animation.FFMpegWriter(fps=10) 
+        anim.save(f, writer=writervideo)
+
+
+    def animate_location_by_salary(self):
+
+        self.incomes = self.merged_df['income'].unique()
+        data = np.zeros((self.num_steps,self.grid_size,self.grid_size),dtype=int)
+        
+        self.animation_boilerplate(, "income_animation")
+
+
+
     def animate_location_density(self):
 
         if os.path.isfile(os.path.join(self.dirname,'location_animation.mov')):
@@ -62,7 +112,7 @@ class SimulationAnalysis:
 if __name__ == "__main__":
     
     foldername = 'trial_0'
-    experiment_name = 'movement2'
+    experiment_name = 'movement1'
 
     if not foldername:
         folders = [f for f in os.listdir('data/') if not f.startswith('.')]
