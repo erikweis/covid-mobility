@@ -6,11 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from datetime import datetime
 import os
-from itertools import combinations
 import json
-import pickle
-import plotly.graph_objects as go
-from tqdm import tqdm
 
 class SimulationAnalysis:
 
@@ -34,6 +30,9 @@ class SimulationAnalysis:
 
         # Join agent and data.csv on idx
         self.merged_df = pd.merge(self.df, self.agents_df, on='agentID')
+        self.merged_df['income_bracket'] = pd.qcut(self.merged_df['income'], 
+                                                    q=5,
+                                                    labels=['low','lower_mid','mid','upper_mid', 'high'])
 
 
     def animation_boilerplate(self, df, fout_name):
@@ -62,19 +61,16 @@ class SimulationAnalysis:
 
         anim = animation.FuncAnimation(fig, update,interval=100,frames=self.num_steps,repeat=True)
 
-        f = os.path.join(self.dirname,fout_name,'.mov')
+        f = os.path.join(self.dirname,fout_name)
         #writergif = animation.PillowWriter(fps=20) 
         writervideo = animation.FFMpegWriter(fps=10) 
         anim.save(f, writer=writervideo)
 
 
     def animate_location_by_salary(self):
-
-        self.incomes = self.merged_df['income'].unique()
-        data = np.zeros((self.num_steps,self.grid_size,self.grid_size),dtype=int)
-        
-        self.animation_boilerplate(, "income_animation")
-
+        for income_bracket in self.merged_df['income_bracket'].unique():
+            df = self.merged_df
+            self.animation_boilerplate(df[df['income_bracket'] == income_bracket], f"income_animation_{income_bracket}.mov")
 
 
     def animate_location_density(self):
@@ -121,4 +117,5 @@ if __name__ == "__main__":
 
     sa = SimulationAnalysis(experiment_name, foldername)
     print("loaded")
-    sa.animate_location_density()
+    # sa.animate_location_density()
+    sa.animate_location_by_salary()
