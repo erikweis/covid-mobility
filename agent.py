@@ -5,6 +5,7 @@ import random
 
 from numpy import histogram
 import numpy as np
+from scipy.special import expit
 
 from location import Location
 
@@ -18,12 +19,17 @@ class Agent:
         idx: int,
         location: Location,
         job =None,
+        pref_pop_density = None,
         **kwargs):
 
         self.idx = idx
         self.job = job
         self._location = location
         self._location.add_agent(self)
+        m,b = 1.25,3
+        self._score2moveprob = lambda s: 1/(1+np.exp(-(m*s-b)))
+
+        self.pref_pop_density = random.randint(0,10) if not pref_pop_density else pref_pop_density
 
     @property
     def income(self):
@@ -34,9 +40,9 @@ class Agent:
         #### define coefficients ####
         # set coefficients such that each factor (on average) contributes equall
         # to the overall score
-        coeff_income = 0.01
+        coeff_income = 10**(-10)
         coeff_low_income = 10
-        coeff_income_match = 0.05
+        coeff_income_match = 10**(-5)
         coeff_housing_cost = 1
 
         #### consider various factors ####
@@ -49,28 +55,28 @@ class Agent:
         score_low_income = 0 if s<0 else s
 
         # if living below means (in a rich area) or above means (a poor area), more likely to move
-        score_income_match = coeff_income_match*abs(self.income-self.location.get_median_income())
+        score_income_match = coeff_income_match*abs(self.income-self.location.median_income())
 
         # housing cost
-        score_housing_cost = coeff_housing_cost*self.location.housing_cost()
+        score_housing_cost = -coeff_housing_cost*self.location.housing_cost()
 
         #### calculate total score ####
         total_score = score_income + score_low_income + score_income_match + score_housing_cost
-        normalization = 100 
-        p_move = total_score/normalization 
+
+        print(score_income, score_low_income, score_income_match, score_housing_cost)
         # normalization should be set such that the expected move rate overall matches
         # emperical data
         
-        return (random.random() < total_score/normalization)
+        return (random.random() < self._score2moveprob(total_score))
 
     def decide_where_to_move(self,all_locations):
         
         # higher salary people have the resources to search more places
-        number_of_choices = None #function depending on salary
+        number_of_choices = 3 #function depending on salary
 
         # larger power law exponent (a), where x^(1/a), for higher income
         # higher income people have the resources to move further
-        a = None
+        a = 2
 
         #create random x and random y drawn from power law distribution
         xs = np.random.power(1/a, size=number_of_choices)
@@ -78,8 +84,8 @@ class Agent:
         #random sign to account for moving left and right, up and down
         signs_x = np.random.choice([-1,1],size=number_of_choices)
         signs_y = np.random.choice([-1,1],size=number_of_choices)
-        xs = np.round(xs*signs_x)
-        ys = np.round(ys*signs_y)
+        xs = np.round(xs*signs_x).astype(int)
+        ys = np.round(ys*signs_y).astype(int)
 
         # reference coordinates
         N, M = all_locations.shape
@@ -98,7 +104,25 @@ class Agent:
         return old_location,new_location
 
     def score_location(self,location):
-        pass
+        
+        coeff_pop_dens = 1
+        coeff_job_opp = 1
+        coeff_median_income = 10**(-4)
+
+        # does the location align with agents preferred population density
+        score_pop_dens = -coeff_pop_dens*abs(location.capacity-self.pref_pop_density)
+
+        # job opportunity is higher in cities
+        score_job_opp = coeff_job_opp*location.capacity
+
+        # mismatch in income lowers score
+        score_median_income = coeff_median_income*abs(location.median_income()-self.income)
+        
+        print("location scores", score_pop_dens,score_job_opp,score_median_income)
+
+        total_score = score_pop_dens + score_job_opp + score_median_income
+
+        return total_score
 
     @property
     def location(self):
