@@ -9,6 +9,10 @@ from scipy.special import expit
 
 from location import Location
 
+import logging
+
+LOG_PROBABILITY = 0.0001
+
 class Agent:
 
     """Agent object
@@ -26,7 +30,7 @@ class Agent:
         self.job = job
         self._location = location
         self._location.add_agent(self)
-        m,b = 1.25,3
+        m,b = 1.25,6
         self._score2moveprob = lambda s: 1/(1+np.exp(-(m*s-b)))
 
         self.pref_pop_density = random.randint(0,10) if not pref_pop_density else pref_pop_density
@@ -63,11 +67,14 @@ class Agent:
         #### calculate total score ####
         total_score = score_income + score_low_income + score_income_match + score_housing_cost
 
-        #print("decision score", score_income, score_low_income, score_income_match, score_housing_cost)
+        ###print("decision score", score_income, score_low_income, score_income_match, score_housing_cost)
+        
         # normalization should be set such that the expected move rate overall matches
         # emperical data
         
-        return (random.random() < self._score2moveprob(total_score))
+        prob_move = (random.random() < self._score2moveprob(total_score))
+
+        return prob_move
 
 
     def decide_where_to_move(self,all_locations):
@@ -119,7 +126,7 @@ class Agent:
         # mismatch in income lowers score
         score_median_income = coeff_median_income*abs(location.median_income()-self.income)
         
-        #print("location scores", score_pop_dens,score_job_opp,score_median_income)
+        ###print("location scores", score_pop_dens,score_job_opp,score_median_income)
 
         total_score = score_pop_dens + score_job_opp + score_median_income
 

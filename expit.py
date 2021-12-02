@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-a,b = 1.25,3
+a,b = 1.25,6
 func = lambda x: 1/(1+np.exp(-(x/a -b)))
 
 x = np.linspace(0,10,50)

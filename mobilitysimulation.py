@@ -14,8 +14,12 @@ from agent import Agent
 from job import Job
 from location import Location
 from tools.utils import get_object_params
-from tools.initialize_locations import initialize_grid
-from tools.initialize_agents import place_grid_agents
+# from tools.initialize_locations import initialize_grid
+# from tools.initialize_agents import place_grid_agents
+
+from initial_state import get_initial_capacities
+
+import logging
 
 class MobilitySimulation(Simulation):
 
@@ -47,24 +51,31 @@ class MobilitySimulation(Simulation):
         self.num_steps = num_steps
         
         #initialize locations
-        # self.locations = np.array([Location(idx, capacity =10) for idx in \
-        #                     range(grid_size**2)]).reshape((grid_size,grid_size))
-        # for i in range(grid_size):
-        #     for j in range(grid_size):
-        #         self.locations[i][j].coords = (i,j)
+        total_occupancy = 0.9
+        total_capacity = num_agents/total_occupancy
+        capacities = get_initial_capacities(grid_size,grid_size,total_capacity)
+
+        N = grid_size
+        grid = np.empty((N,N),dtype=Location)
+        idx = 0
+        for i in range(N):
+            for j in range(N):
+                grid[i][j] = Location(idx,coords=(i,j),capacity = int(capacities[i][j]))
+                idx += 1
+
+        self.locations = grid
 
         #initialize grid and agents
-        grid, mean, std_dev, capacities = initialize_grid(size=grid_size)
-        self.locations = grid
-        get_capacities = np.vectorize(lambda x:x.capacity)
-        capacities = get_capacities(grid)
-
+        # grid, mean, std_dev, capacities = initialize_grid(size=grid_size)
+        # self.locations = grid
+        # get_capacities = np.vectorize(lambda x:x.capacity)
+        # capacities = get_capacities(grid)
 
         #initialize agents
         self.agents = []
         for agentID in range(self.num_agents):
             
-            loc = np.random.choice(grid.flatten(),p=capacities.flatten()/sum(capacities.flatten()))
+            loc = np.random.choice(grid.flatten()) #,p=capacities.flatten()/sum(capacities.flatten()))
             job = Job(idx = agentID,salary=np.random.exponential(scale=30000))
             a = Agent(agentID,loc,job)
             self.agents.append(a)
@@ -91,11 +102,16 @@ class MobilitySimulation(Simulation):
 
     def update(self,t):
 
+        num_moves = 0
+        
         for agent in self.agents:
             if agent.decide_to_move():
                 self.move_agent(agent)
+                num_moves += 1
 
             self.data.append([t,*agent.get_tidy_state()]) #save state to data
+
+        ###print(f"{num_moves} moves at time {t}")
 
 
     def run_simulation(self):
@@ -114,7 +130,7 @@ class MobilitySimulation(Simulation):
         
         #locations
         fpath_locs = os.path.join(self.dirname,'locations.jsonl')
-        location_params_to_ignore = ['agents']
+        location_params_to_ignore = ['agents','quality']
         loc_params = [ get_object_params(loc,location_params_to_ignore) for loc in self.locations.flatten()]
         lines = [json.dumps(lp) for lp in loc_params]
         with open(fpath_locs,'w') as f:
@@ -158,9 +174,9 @@ if __name__ == "__main__":
         MobilitySimulation,
         'movement1',
         root_dir = 'data',
-        grid_size=[10],
-        num_steps = [5],
-        num_agents = [500]
+        grid_size=[20],
+        num_steps = [1],
+        num_agents = [3000]
     )
     e.run_all_trials(debug=True)
 
