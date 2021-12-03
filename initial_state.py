@@ -21,15 +21,35 @@ def get_initial_capacities(grid_size, num_cities,total_occupancy):
     vals += total_rural_pop_to_add/(N**2)
 
     #normalize
-    scaling_factor = total_occupancy/np.sum(vals.flatten())
+    scaling_factor = (total_occupancy-N**2)/np.sum(vals.flatten()) #normalize for total_occupancy - N^2
     capacities = vals*scaling_factor
+    capacities = capacities + np.ones((N,N)) #add remaining N^2 evenly across board
 
     return np.round(capacities).astype(int)
 
 
-if __name__ == "__main__":
+def plot_capacities(caps):
 
-    caps = get_initial_capacities(30,50,5000)
     plt.imshow(caps)
     plt.colorbar()
     plt.show()
+
+
+def plot_capacity_distribution(caps):
+
+    caps = caps.flatten()
+
+    out,bins = np.histogram(caps,bins=np.logspace(np.log10(0.1),np.log10(100), 20),density=True)
+
+    plt.scatter(bins[:-1],out)
+    plt.yscale('log')
+    plt.show()
+
+if __name__ == "__main__":
+
+    caps = get_initial_capacities(30,50,5000)
+
+    plot_capacities(caps)
+    plot_capacity_distribution(caps)
+    
+

@@ -53,7 +53,8 @@ class MobilitySimulation(Simulation):
         #initialize locations
         total_occupancy = 0.9
         total_capacity = num_agents/total_occupancy
-        capacities = get_initial_capacities(grid_size,grid_size,total_capacity)
+        num_cities = int(grid_size**2/10)
+        capacities = get_initial_capacities(grid_size,num_cities,total_capacity)
 
         N = grid_size
         grid = np.empty((N,N),dtype=Location)
@@ -65,12 +66,6 @@ class MobilitySimulation(Simulation):
 
         self.locations = grid
 
-        #initialize grid and agents
-        # grid, mean, std_dev, capacities = initialize_grid(size=grid_size)
-        # self.locations = grid
-        # get_capacities = np.vectorize(lambda x:x.capacity)
-        # capacities = get_capacities(grid)
-
         #initialize agents
         self.agents = []
         for agentID in range(self.num_agents):
@@ -80,12 +75,9 @@ class MobilitySimulation(Simulation):
             a = Agent(agentID,loc,job)
             self.agents.append(a)
 
-        # grid, agents = place_grid_agents(grid)
-        # self.locations = grid
-        # self.agents = agents
-
         #data
-        self.data = []
+        self.agent_location_data = []
+        self.move_data = []
 
 
     @property
@@ -93,25 +85,23 @@ class MobilitySimulation(Simulation):
         return self._dirname
 
 
-    def move_agent(self,agent):
+    def move_agent(self,agent,time):
 
         old_loc, new_loc = agent.decide_where_to_move(self.locations)
         agent.location = new_loc #update agent location
         old_loc.remove_agent(agent) #remove agent from old location
         new_loc.add_agent(agent) #add agent to new location
+        
+        #save move data
+        self.move_data.append([time,agent.idx,old_loc.idx,*old_loc.coords,new_loc.idx,*new_loc.coords])
 
     def update(self,t):
-
-        num_moves = 0
         
         for agent in self.agents:
             if agent.decide_to_move():
-                self.move_agent(agent)
-                num_moves += 1
+                self.move_agent(agent,time=t)
 
-            self.data.append([t,*agent.get_tidy_state()]) #save state to data
-
-        ###print(f"{num_moves} moves at time {t}")
+            self.agent_location_data.append([t,*agent.get_tidy_state()]) #save state to data
 
 
     def run_simulation(self):
@@ -123,7 +113,7 @@ class MobilitySimulation(Simulation):
     def save_state(self):
 
         for agent in self.agents:
-            self.data.append(agent.get_tidy_state())
+            self.agent_location_data.append(agent.get_tidy_state())
 
 
     def save_data(self):
@@ -154,11 +144,18 @@ class MobilitySimulation(Simulation):
             json.dump(global_params,f)
 
         #save data
-        fpath_data = os.path.join(self.dirname,'data.csv')
+        fpath_data = os.path.join(self.dirname,'agent_location_data.csv')
         with open(fpath_data,'w') as csvfile:
             writer = csv.writer(csvfile,quoting=csv.QUOTE_MINIMAL)
             writer.writerow(['time','agentID','locationID','xloc','yloc'])
-            for row in self.data:
+            for row in self.agent_location_data:
+                writer.writerow(row)
+
+        fpath_data = os.path.join(self.dirname,'move_data.csv')
+        with open(fpath_data,'w') as csvfile:
+            writer = csv.writer(csvfile,quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(['time','agentID','fromlocID','from_x','from_y','tolocID','to_x','to_y'])
+            for row in self.move_data:
                 writer.writerow(row)
 
 
@@ -172,11 +169,11 @@ if __name__ == "__main__":
 
     e = Experiment(
         MobilitySimulation,
-        'movement1',
+        'movement2',
         root_dir = 'data',
         grid_size=[20],
-        num_steps = [1],
-        num_agents = [3000]
+        num_steps = [200],
+        num_agents = [10000]
     )
     e.run_all_trials(debug=True)
 

@@ -80,20 +80,20 @@ class Agent:
     def decide_where_to_move(self,all_locations):
         
         # higher salary people have the resources to search more places
-        number_of_choices = 3 #function depending on salary
+        number_of_choices = 10 #function depending on salary
 
         # larger power law exponent (a), where x^(1/a), for higher income
         # higher income people have the resources to move further
         a = 2
 
         #create random x and random y drawn from power law distribution
-        xs = np.random.power(1/a, size=number_of_choices)
-        ys = np.random.power(1/a, size=number_of_choices)
+        xs = np.random.zipf(3, size=number_of_choices)
+        ys = np.random.zipf(3, size=number_of_choices)
         #random sign to account for moving left and right, up and down
         signs_x = np.random.choice([-1,1],size=number_of_choices)
         signs_y = np.random.choice([-1,1],size=number_of_choices)
-        xs = np.round(xs*signs_x).astype(int)
-        ys = np.round(ys*signs_y).astype(int)
+        xs = np.floor(xs*signs_x).astype(int)
+        ys = np.floor(ys*signs_y).astype(int)
 
         # reference coordinates
         N, M = all_locations.shape
