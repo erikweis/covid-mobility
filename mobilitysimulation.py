@@ -169,10 +169,10 @@ if __name__ == "__main__":
 
     e = Experiment(
         MobilitySimulation,
-        'movement2',
+        'movement3',
         root_dir = 'data',
         grid_size=[20],
-        num_steps = [200],
+        num_steps = [5],
         num_agents = [10000]
     )
     e.run_all_trials(debug=True)

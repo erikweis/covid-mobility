@@ -9,6 +9,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from datetime import datetime
 import os
 import json
+from tqdm import tqdm
 
 from matplotlib.image import AxesImage
 
@@ -45,7 +46,18 @@ class SimulationAnalysis:
                                                     q=5,
                                                     labels=['low','lower_mid','mid','upper_mid', 'high'])
 
+        #join agent and move_df
+        self.merged_move_df = pd.merge(self.move_df, self.agents_df, on='agentID')
+        self.merged_move_df['income_bracket'] = pd.qcut(self.merged_df['income'], 
+                                                    q=5,
+                                                    labels=['low','lower_mid','mid','upper_mid', 'high'])
 
+    def check_existance(self,fname):
+
+        if os.path.isfile(os.path.join(self.dirname,fname)):
+            print(f"File {fname} already exists")
+            return True
+        return False
 
 
     def animate(self, animation_data, fout_name, plot_title = None):
@@ -125,7 +137,7 @@ class SimulationAnalysis:
 
         data = np.zeros((self.num_steps,self.grid_size,self.grid_size),dtype=int)
 
-        for index, row in df.iterrows():
+        for index, row in tqdm(df.iterrows()):
             t = row['time']
             x = row['xloc']
             y = row['yloc']
@@ -166,6 +178,10 @@ class SimulationAnalysis:
 
     def animate_population_density_by_salary(self):
 
+        filename = "income_bracket_animation.mov"
+        if self.check_existance(filename):
+            return None
+
         data_array = []
         plot_titles = []
         for income_bracket in self.merged_df['income_bracket'].unique():
@@ -181,7 +197,7 @@ class SimulationAnalysis:
         data_array = np.array(data_array)
         data_array = data_array.reshape((3,2,*data_array.shape[1:]))
         plot_titles = np.array(plot_titles).reshape((3,2))
-        self.multi_animate(data_array, f"income_bracket_animation.mov",plot_titles = plot_titles,figsize=(8,10))
+        self.multi_animate(data_array, filename,plot_titles = plot_titles,figsize=(8,10))
 
 
     def animate_population_density(self):
@@ -294,6 +310,10 @@ class SimulationAnalysis:
     def plot_move_distance_distribution(self):
 
         # get move distances
+        filename = 'move_distance_distribution.png'
+        if self.check_existance(filename):
+            return None
+
         if 'move_distance' not in self.move_df.columns:
             self.calculate_move_distances()
         move_distances = self.move_df['move_distance'].values
@@ -301,11 +321,31 @@ class SimulationAnalysis:
         bins = np.logspace(np.log10(np.min(move_distances+0.01)), 
                        np.log10(np.max(move_distances)), 
                        num=10)
-        print(bins)
         vals, bins_ = np.histogram(move_distances,bins=bins)
 
         plt.plot(bins[:-1],vals,'o-')
-        plt.show()
+        plt.title('Move Distance Distribution')
+        plt.savefig(os.path.join(self.dirname,filename))
+
+
+    def plot_move_activity_by_income(self):
+
+        filename = 'move_activity_by_income_bracket.png'
+        if self.check_existance(filename):
+            return None
+
+        df = self.merged_move_df
+        df = df.groupby(['income_bracket','time']).size().reset_index(name='Count')
+        df = pd.pivot_table(df, index='time',columns = 'income_bracket', values='Count')
+        
+        #plot
+        fig, ax = plt.subplots()
+        for col in df.columns:
+            ax.plot(df[col],label=col)
+        ax.legend()
+        ax.set_title('Move Activity by Income Bracket')
+        plt.savefig(os.path.join(self.dirname,filename))
+
 
 if __name__ == "__main__":
     
@@ -321,7 +361,8 @@ if __name__ == "__main__":
     print("loaded")
     sa.plot_move_distance_distribution()
     #sa.animate_population_density()
-    #sa.animate_population_density_by_salary()
+    sa.animate_population_density_by_salary()
+    sa.plot_move_activity_by_income()
     #sa.plot_location_demographics(0)
     #sa.plot_median_incomes()
     #sa.plot_income_std()
