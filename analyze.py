@@ -83,7 +83,7 @@ class SimulationAnalysis:
         anim.save(f, writer=writervideo)
 
 
-    def multi_animate(self,data_array,fout_name, plot_titles = None,figsize=(8,8)):
+    def multi_animate(self,data_array,fout_name, plot_presence = None, plot_titles = None,figsize=(8,8)):
 
         num_rows,num_cols = data_array.shape[:2]
 
@@ -97,20 +97,23 @@ class SimulationAnalysis:
             if num_rows == 1:
                 i=0
                 for j in range(num_cols):
-                    axes[i][j].set_title(plot_titles[i][j])
+                    if plot_presence and not plot_presence[i][j]: continue
+                    axes[j].set_title(plot_titles[i][j])
                     ims[i][j] = axes[j].imshow(data_array[i][j][t])
 
             #only columns
             elif num_cols == 1:
                 j=0
                 for i in range(num_rows):
-                    axes[i][j].set_title(plot_titles[i][j])
+                    if plot_presence and not plot_presence[i][j]: continue
+                    axes[i].set_title(plot_titles[i][j])
                     ims[i][j] = axes[i].imshow(data_array[i][j][t])
 
             # multiple rows and columns
             else:
                 for i in range(num_rows):
                     for j in range(num_cols):
+                        if plot_presence and not plot_presence[i][j]: continue
                         axes[i][j].set_title(plot_titles[i][j])
                         ims[i][j] = axes[i][j].imshow(data_array[i][j][t])
                 
@@ -286,7 +289,6 @@ class SimulationAnalysis:
         plt.show()
 
 
-
     def calculate_move_distances(self):
 
         df = self.move_df
@@ -347,10 +349,134 @@ class SimulationAnalysis:
         plt.savefig(os.path.join(self.dirname,filename))
 
 
+    def calculate_capacities(self):
+
+        N = self.grid_size
+        capacities = np.empty((N,N))
+
+        for index, row in self.locations_df.iterrows():
+            print(self.locations_df)
+            x,y = row['coords']
+            capacities[y][x] = row['capacity']
+
+        return capacities
+
+
+    def plot_capacities(self):
+        
+        plt.imshow(self.calculate_capacities())
+        plt.show()
+
+
+    def calculate_flows(self):
+
+        location2coords = {k:v for k,v in zip(self.locations_df['locationID'],self.locations_df['coords'])}
+
+        df = self.move_df
+        df_outflow = df.groupby(['fromlocID','time']).size().reset_index(name='Count')
+        #df_outflow = df.pivot_table(index='time',columns='fromlocationID',values='Count')
+        plt.hist(df_outflow['Count'].values)
+        plt.show()
+
+        df_inflow = df.groupby(['tolocID','time']).size().reset_index(name='Count')
+        plt.hist(df_inflow['Count'].values)
+        plt.show()
+        #df_inflow = df.pivot_table(index='time',columns='tolocationID',values='Count')
+
+        N = self.grid_size
+        inflows = np.zeros((self.num_steps,N,N))
+        outflows = np.zeros((self.num_steps,N,N))
+
+        for index, row in tqdm(df_outflow.iterrows()):
+            t = row['time']
+            loc = row['fromlocID']
+            x,y = location2coords[loc]
+            outflows[t][y][x] = row['Count']
+
+        for index, row in tqdm(df_inflow.iterrows()):
+            t = row['time']
+            loc = row['tolocID']
+            x,y = location2coords[loc]
+            outflows[t][y][x] = row['Count']
+
+        total_flows = inflows+outflows
+
+        return total_flows, inflows, outflows
+
+    def animate_flows(self):
+
+
+        filename = 'animate_flows.mov'
+        if self.check_existance(filename):
+            return None
+
+        total_flows, inflows, outflows = self.calculate_flows()
+        data_array = np.array([[inflows, outflows, total_flows]])
+
+        self.multi_animate(
+            data_array,
+            filename,
+            plot_titles=np.array([['Inflows','Outflows','Total Flows']]),
+            figsize=(10,4)
+        )
+
+    def plot_flows(self):
+
+        filename = 'flows.png'
+        if self.check_existance(filename):
+            return None
+
+        df = self.move_df
+        df_outflow = df.groupby(['fromlocID']).size().reset_index(name='Count')
+        df_inflow = df.groupby(['tolocID']).size().reset_index(name='Count')
+
+        N = self.grid_size
+        inflows = np.zeros((N,N))
+        outflows = np.zeros((N,N))
+
+        location2coords = {k:v for k,v in zip(self.locations_df['locationID'],self.locations_df['coords'])}
+
+        for index, row in tqdm(df_outflow.iterrows()):
+            loc = row['fromlocID']
+            x,y = location2coords[loc]
+            outflows[y][x] = row['Count']
+
+        for index, row in tqdm(df_inflow.iterrows()):
+            loc = row['tolocID']
+            x,y = location2coords[loc]
+            outflows[y][x] = row['Count']
+
+        total_flows = inflows+outflows
+
+        fig, ax = plt.subplots(1,2)
+
+        ax[0].imshow(total_flows)
+        ax[0].set_title('Total Flows')
+
+        ax[1].imshow(self.calculate_capacities())
+        ax[1].set_title('Location Capacities')
+
+        plt.savefig(os.path.join(self.dirname,filename))
+
+    def plot_capacity_distribution(self):
+
+        filename = 'capacity_distribution.png'
+        if self.check_existance(filename):
+            return None
+
+        caps = self.calculate_capacities()
+
+        out,bins = np.histogram(caps,bins=np.logspace(np.log10(1),np.log10(100), 20),density=True)
+
+        plt.plot(bins[:-1],out,'o-')
+        plt.yscale('log')
+        plt.savefig(os.path.join(self.dirname,filename))
+
+
 if __name__ == "__main__":
     
     foldername = 'trial_0'
-    experiment_name = 'movement2'
+    experiment_name = 'movement3'
 
     if not foldername:
         folders = [f for f in os.listdir('data/') if not f.startswith('.')]
@@ -359,10 +485,14 @@ if __name__ == "__main__":
 
     sa = SimulationAnalysis(experiment_name, foldername)
     print("loaded")
-    sa.plot_move_distance_distribution()
+    #sa.animate_flows()
+    sa.plot_flows()
+    sa.plot_capacity_distribution()
+    #sa.plot_capacities()
+    #sa.plot_move_distance_distribution()
     #sa.animate_population_density()
-    sa.animate_population_density_by_salary()
-    sa.plot_move_activity_by_income()
+    #sa.animate_population_density_by_salary()
+    #sa.plot_move_activity_by_income()
     #sa.plot_location_demographics(0)
     #sa.plot_median_incomes()
     #sa.plot_income_std()
