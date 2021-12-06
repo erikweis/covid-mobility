@@ -124,6 +124,7 @@ class Agent:
         coeff_pop_dens = 1
         coeff_job_opp = 1
         coeff_median_income = 10**(-4)
+        coeff_housing_cost = 10
 
         # does the location align with agents preferred population density
         score_pop_dens = -coeff_pop_dens*abs(location.capacity-self.pref_pop_density)
@@ -133,6 +134,10 @@ class Agent:
 
         # mismatch in income lowers score
         score_median_income = coeff_median_income*abs(location.median_income()-self.income)
+
+        # score housing cost
+        score_housing_cost = -coeff_housing_cost*self.location.housing_cost()
+
         
         ###print("location scores", score_pop_dens,score_job_opp,score_median_income)
 
@@ -142,7 +147,8 @@ class Agent:
             'total_score':total_score,
             'score_pop_dens':score_pop_dens,
             'score_job_opp':score_job_opp,
-            'score_median_income':score_median_income
+            'score_median_income':score_median_income,
+            'score_housing_cost':score_housing_cost
         }
         return scoredict
 

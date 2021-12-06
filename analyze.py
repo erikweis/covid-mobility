@@ -34,6 +34,7 @@ class SimulationAnalysis:
             self.locations_df = pd.DataFrame([json.loads(s) for s in f.readlines()])
             self.locations_df.rename(columns={'idx':'locationID'},inplace=True)
         
+
     @property
     def df(self):
         # load agent locationd ata
@@ -328,7 +329,6 @@ class SimulationAnalysis:
     def calculate_move_distances(self):
 
         df = self.move_df
-        print(self.move_df.columns)
 
         def calc_distance(row):
             N = self.grid_size
@@ -342,7 +342,6 @@ class SimulationAnalysis:
             return np.sqrt(x_dist**2 + y_dist**2)
 
         df['move_distance'] = df.apply(calc_distance,axis=1)
-        print(df['move_distance'])
 
 
     def plot_move_distance_distribution(self):
@@ -355,6 +354,8 @@ class SimulationAnalysis:
         if 'move_distance' not in self.move_df.columns:
             self.calculate_move_distances()
         move_distances = self.move_df['move_distance'].values
+
+        fig = plt.figure()
 
         bins = np.logspace(np.log10(np.min(move_distances+0.01)), 
                        np.log10(np.max(move_distances)), 
@@ -396,7 +397,6 @@ class SimulationAnalysis:
         capacities = np.empty((N,N))
 
         for index, row in self.locations_df.iterrows():
-            print(self.locations_df)
             x,y = row['coords']
             capacities[y][x] = row['capacity']
 
@@ -516,13 +516,18 @@ class SimulationAnalysis:
 
     def plot_mean_location_score(self, smoothing = True):
 
+        filepath = os.path.join(self.dirname,'mean_location_score.png')
+        if self.check_existance(filepath):
+            return None
+
         gb = self.location_score_df.groupby('time',as_index=False)
 
         aggregations = {
             'total_score': 'mean',
             'score_pop_dens': 'mean',
             'score_job_opp':'mean',
-            'score_median_income':'mean'
+            'score_median_income':'mean',
+            'score_housing_cost':'mean'
         }
 
         df = gb.agg(aggregations)
@@ -537,9 +542,13 @@ class SimulationAnalysis:
 
         plt.legend()
         plt.title('Mean Location Scores at Each Time Step')
-        plt.show()
+        plt.savefig(filepath)
 
     def plot_mean_move_decision_score(self):
+
+        filepath = os.path.join(self.dirname,'mean_move_decision_score.png')
+        if self.check_existance(filepath):
+            return None
 
         df = self.move_decision_score_df
 
@@ -552,7 +561,7 @@ class SimulationAnalysis:
             ax.plot(vals,label=col)
 
         plt.legend()
-        plt.show()
+        plt.savefig(filepath)
 
 if __name__ == "__main__":
     
@@ -567,18 +576,18 @@ if __name__ == "__main__":
     sa = SimulationAnalysis(experiment_name, foldername)
     print("loaded")
     #sa.animate_flows()
-    #sa.plot_flows()
+    sa.plot_flows()
     #sa.plot_capacity_distribution()
     #sa.plot_capacities()
     sa.plot_move_distance_distribution()
     #sa.animate_population_density()
-    sa.animate_population_density_by_salary()
+    #sa.animate_population_density_by_salary()
     sa.plot_move_activity_by_income(smoothing=True)
     #sa.plot_location_demographics(0)
     #sa.plot_median_incomes()
     #sa.plot_income_std()
 
-    #sa.plot_mean_location_score()
+    sa.plot_mean_location_score()
     sa.plot_mean_move_decision_score()
 
     #sa.animate_median_income()

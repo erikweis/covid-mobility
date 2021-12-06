@@ -55,7 +55,7 @@ class MobilitySimulation(Simulation):
         self.covid_intervention_time = covid_intervention_time
         
         #initialize locations
-        total_occupancy = 0.9
+        total_occupancy = 0.99
         total_capacity = num_agents/total_occupancy
         num_cities = int(grid_size**2/10)
         capacities = get_initial_capacities(grid_size,num_cities,total_capacity)
@@ -158,7 +158,7 @@ class MobilitySimulation(Simulation):
 
         #global params
         fpath_params = os.path.join(self.dirname,'params.json')
-        global_params_to_ignore = ['locations','agents','data']
+        global_params_to_ignore = ['locations','agents','data','location_score_data','move_decision_score_data']
         global_params = get_object_params(self,global_params_to_ignore)
         with open(fpath_params,'w') as f:
             json.dump(global_params,f)
