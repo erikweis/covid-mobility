@@ -330,7 +330,7 @@ class SimulationAnalysis:
         plt.savefig(os.path.join(self.dirname,filename))
 
 
-    def plot_move_activity_by_income(self):
+    def plot_move_activity_by_income(self,smoothing=False):
 
         filename = 'move_activity_by_income_bracket.png'
         if self.check_existance(filename):
@@ -343,7 +343,12 @@ class SimulationAnalysis:
         #plot
         fig, ax = plt.subplots()
         for col in df.columns:
-            ax.plot(df[col],label=col)
+            
+            dat = df[col]
+            if smoothing:
+                dat = dat.rolling(window=int(self.num_steps//50),min_periods=1).mean().values
+
+            ax.plot(dat,label=col)
         ax.legend()
         ax.set_title('Move Activity by Income Bracket')
         plt.savefig(os.path.join(self.dirname,filename))
@@ -486,13 +491,13 @@ if __name__ == "__main__":
     sa = SimulationAnalysis(experiment_name, foldername)
     print("loaded")
     #sa.animate_flows()
-    sa.plot_flows()
-    sa.plot_capacity_distribution()
+    #sa.plot_flows()
+    #sa.plot_capacity_distribution()
     #sa.plot_capacities()
     #sa.plot_move_distance_distribution()
     #sa.animate_population_density()
     #sa.animate_population_density_by_salary()
-    #sa.plot_move_activity_by_income()
+    sa.plot_move_activity_by_income(smoothing=True)
     #sa.plot_location_demographics(0)
     #sa.plot_median_incomes()
     #sa.plot_income_std()

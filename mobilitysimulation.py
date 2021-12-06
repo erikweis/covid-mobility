@@ -19,8 +19,6 @@ from tools.utils import get_object_params
 
 from initial_state import get_initial_capacities
 
-import logging
-
 class MobilitySimulation(Simulation):
 
     """MobilitySimulation is the central class from running a mobility simulation.
@@ -38,6 +36,7 @@ class MobilitySimulation(Simulation):
         num_agents:int = 100,
         grid_size:int = 20,
         num_steps:int = 500,
+        proportion_remote_workers: float = 1.0,
         **kwargs
     ): 
 
@@ -49,6 +48,7 @@ class MobilitySimulation(Simulation):
         self.num_agents = num_agents
         self.grid_size = grid_size
         self.num_steps = num_steps
+        self.proportion_remote_workers = proportion_remote_workers
         
         #initialize locations
         total_occupancy = 0.9
@@ -97,6 +97,12 @@ class MobilitySimulation(Simulation):
 
 
     def update(self,t):
+
+        # add remote work with covid
+        if t == self.num_steps//2:
+            for agent in self.agents:
+                if random.random() < self.proportion_remote_workers:
+                    agent.job.remote_status = True
         
         for agent in self.agents:
             if agent.decide_to_move():
@@ -173,7 +179,7 @@ if __name__ == "__main__":
         'movement3',
         root_dir = 'data',
         grid_size=[20],
-        num_steps = [200],
+        num_steps = [1000],
         num_agents = [10000]
     )
     e.run_all_trials(debug=True)

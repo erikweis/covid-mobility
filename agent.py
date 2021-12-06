@@ -95,6 +95,9 @@ class Agent:
         xs = np.floor(xs*signs_x).astype(int)
         ys = np.floor(ys*signs_y).astype(int)
 
+        #add current location, if it's the highest score don't move
+        xs = np.append(xs,[0]); ys = np.append(ys,[0]);
+
         # reference coordinates
         N, M = all_locations.shape
         x0,y0 = self.location.coords
@@ -121,7 +124,7 @@ class Agent:
         score_pop_dens = -coeff_pop_dens*abs(location.capacity-self.pref_pop_density)
 
         # job opportunity is higher in cities
-        score_job_opp = coeff_job_opp*location.capacity
+        score_job_opp = 0 if self.job.remote_status else coeff_job_opp*location.capacity
 
         # mismatch in income lowers score
         score_median_income = coeff_median_income*abs(location.median_income()-self.income)
