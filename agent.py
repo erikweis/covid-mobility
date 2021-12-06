@@ -47,7 +47,7 @@ class Agent:
         coeff_income = 10**(-10)
         coeff_low_income = 10
         coeff_income_match = 10**(-5)
-        coeff_housing_cost = 1
+        coeff_housing_cost = 10**(-4)
 
         #### consider various factors ####
 
@@ -62,19 +62,24 @@ class Agent:
         score_income_match = coeff_income_match*abs(self.income-self.location.median_income())
 
         # housing cost
-        score_housing_cost = -coeff_housing_cost*self.location.housing_cost()
+        score_housing_cost = coeff_housing_cost*(self.location.housing_cost()**4)
 
         #### calculate total score ####
         total_score = score_income + score_low_income + score_income_match + score_housing_cost
 
-        ###print("decision score", score_income, score_low_income, score_income_match, score_housing_cost)
-        
+        score_dict = {
+            'total_score': total_score,
+            'score_income': score_income,
+            'score_income_match': score_income_match,
+            'score_housing_cost': score_housing_cost
+        }
+
         # normalization should be set such that the expected move rate overall matches
         # emperical data
         
-        prob_move = (random.random() < self._score2moveprob(total_score))
+        decision = (random.random() < self._score2moveprob(total_score))
 
-        return prob_move
+        return decision, score_dict
 
 
     def decide_where_to_move(self,all_locations):
@@ -105,14 +110,14 @@ class Agent:
         # get possible locations to move
         possible_locations = [all_locations[(x0+x)%N][(y0+y)%N] for x,y in zip(xs,ys)]
 
-        scores = [self.score_location(l) for l in possible_locations]
+        possible_location_scores = [self.score_location(l) for l in possible_locations]
+        total_scores = [s['total_score'] for s in possible_location_scores]
         
-        new_location = possible_locations[np.argmax(scores)]
+        new_location = possible_locations[np.argmax(total_scores)]
         old_location = self.location
 
         #new_location = random.choice(possible_locations)
-
-        return old_location,new_location
+        return old_location,new_location, possible_location_scores
 
     def score_location(self,location):
         
@@ -133,7 +138,13 @@ class Agent:
 
         total_score = score_pop_dens + score_job_opp + score_median_income
 
-        return total_score
+        scoredict = {
+            'total_score':total_score,
+            'score_pop_dens':score_pop_dens,
+            'score_job_opp':score_job_opp,
+            'score_median_income':score_median_income
+        }
+        return scoredict
 
     @property
     def location(self):

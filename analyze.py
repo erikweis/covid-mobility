@@ -18,12 +18,6 @@ class SimulationAnalysis:
     def __init__(self, experiment_name, folder_name):
 
         self.dirname = os.path.join('data',experiment_name,folder_name)
-        
-        # load agent locationd ata
-        self.df = pd.read_csv(os.path.join(self.dirname,'agent_location_data.csv'))
-
-        # load move data
-        self.move_df = pd.read_csv(os.path.join(self.dirname,'move_data.csv'))
 
         with open(os.path.join(self.dirname,'params.json'),'r') as f:
             params =json.load(f)
@@ -39,18 +33,60 @@ class SimulationAnalysis:
         with open(os.path.join(self.dirname,'locations.jsonl')) as f:
             self.locations_df = pd.DataFrame([json.loads(s) for s in f.readlines()])
             self.locations_df.rename(columns={'idx':'locationID'},inplace=True)
+        
+    @property
+    def df(self):
+        # load agent locationd ata
+        if not hasattr(self,'_df'):
+            self._df = pd.read_csv(os.path.join(self.dirname,'agent_location_data.csv'))
+        return self._df
+
+    @property
+    def move_df(self):
+        # load move data
+        if not hasattr(self,'_move_df'):
+            self._move_df = pd.read_csv(os.path.join(self.dirname,'move_data.csv'))
+        return self._move_df
+    
+    @property
+    def location_score_df(self):
+        # load location score data
+        if not hasattr(self,'_location_score_df'):
+            self._location_score_df = pd.read_csv(os.path.join(self.dirname,'location_score_data.csv'),index_col=[0])
+        return self._location_score_df
+
+    
+    @property
+    def merged_df(self):
 
         # Join agent and data.csv on idx
-        self.merged_df = pd.merge(self.df, self.agents_df, on='agentID')
-        self.merged_df['income_bracket'] = pd.qcut(self.merged_df['income'], 
-                                                    q=5,
-                                                    labels=['low','lower_mid','mid','upper_mid', 'high'])
+        if not hasattr(self,'_merged_df'):
+            self._merged_df = pd.merge(self.df, self.agents_df, on='agentID')
+            self._merged_df['income_bracket'] = pd.qcut(self.merged_df['income'], 
+                                                        q=5,
+                                                        labels=['low','lower_mid','mid','upper_mid', 'high'])
+        return self._merged_df
 
-        #join agent and move_df
-        self.merged_move_df = pd.merge(self.move_df, self.agents_df, on='agentID')
-        self.merged_move_df['income_bracket'] = pd.qcut(self.merged_df['income'], 
-                                                    q=5,
-                                                    labels=['low','lower_mid','mid','upper_mid', 'high'])
+    @property
+    def merged_move_df(self):
+
+        if not hasattr(self,'_merged_move_df'):
+
+            #join agent and move_df
+            self._merged_move_df = pd.merge(self.move_df, self.agents_df, on='agentID')
+            self._merged_move_df['income_bracket'] = pd.qcut(self.merged_df['income'], 
+                                                        q=5,
+                                                        labels=['low','lower_mid','mid','upper_mid', 'high'])
+        return self._merged_move_df
+
+    @property
+    def move_decision_score_df(self):
+        
+        if not hasattr(self,'_move_decision_score_df'):
+            self._move_decision_score_df = pd.read_csv(os.path.join(self.dirname,'move_decision_score_data.csv'))
+        
+        return self._move_decision_score_df
+
 
     def check_existance(self,fname):
 
@@ -478,10 +514,50 @@ class SimulationAnalysis:
         plt.savefig(os.path.join(self.dirname,filename))
 
 
+    def plot_mean_location_score(self, smoothing = True):
+
+        gb = self.location_score_df.groupby('time',as_index=False)
+
+        aggregations = {
+            'total_score': 'mean',
+            'score_pop_dens': 'mean',
+            'score_job_opp':'mean',
+            'score_median_income':'mean'
+        }
+
+        df = gb.agg(aggregations)
+
+        fig, ax = plt.subplots()
+
+        for col in df.columns:
+            if col=='time':
+                continue
+            vals = df[col].rolling(window=1,min_periods=1).mean()
+            ax.plot(vals,label=col)
+
+        plt.legend()
+        plt.title('Mean Location Scores at Each Time Step')
+        plt.show()
+
+    def plot_mean_move_decision_score(self):
+
+        df = self.move_decision_score_df
+
+        fig, ax = plt.subplots()
+
+        for col in df.columns:
+            if col=='time':
+                continue
+            vals = df[col].rolling(window=1,min_periods=1).mean()
+            ax.plot(vals,label=col)
+
+        plt.legend()
+        plt.show()
+
 if __name__ == "__main__":
     
     foldername = 'trial_0'
-    experiment_name = 'movement3'
+    experiment_name = 'movement1'
 
     if not foldername:
         folders = [f for f in os.listdir('data/') if not f.startswith('.')]
@@ -494,13 +570,16 @@ if __name__ == "__main__":
     #sa.plot_flows()
     #sa.plot_capacity_distribution()
     #sa.plot_capacities()
-    #sa.plot_move_distance_distribution()
+    sa.plot_move_distance_distribution()
     #sa.animate_population_density()
-    #sa.animate_population_density_by_salary()
+    sa.animate_population_density_by_salary()
     sa.plot_move_activity_by_income(smoothing=True)
     #sa.plot_location_demographics(0)
     #sa.plot_median_incomes()
     #sa.plot_income_std()
+
+    #sa.plot_mean_location_score()
+    sa.plot_mean_move_decision_score()
 
     #sa.animate_median_income()
     #sa.animate_std_income()
