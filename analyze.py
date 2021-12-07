@@ -17,11 +17,12 @@ class SimulationAnalysis:
 
     def __init__(self, experiment_name, folder_name):
 
+        #the working directory of this particular simulation
         self.dirname = os.path.join('data',experiment_name,folder_name)
 
+        #set all meta parameters to object attributes
         with open(os.path.join(self.dirname,'params.json'),'r') as f:
             params =json.load(f)
-
         for attr,value in params.items():
             self.__setattr__(attr,value)
 
@@ -34,6 +35,8 @@ class SimulationAnalysis:
             self.locations_df = pd.DataFrame([json.loads(s) for s in f.readlines()])
             self.locations_df.rename(columns={'idx':'locationID'},inplace=True)
         
+
+    #### lazy load data frames, i.e. they only load the first time the argument is called ####
 
     @property
     def df(self):
@@ -91,6 +94,8 @@ class SimulationAnalysis:
 
     def check_existance(self,fname):
 
+        """helper function to avoid reduntanly generating plot images and videos."""
+
         if os.path.isfile(os.path.join(self.dirname,fname)):
             print(f"File {fname} already exists")
             return True
@@ -99,6 +104,9 @@ class SimulationAnalysis:
 
     def animate(self, animation_data, fout_name, plot_title = None):
         
+        """General function for animating values on a grid. Pass in a numpy array with dimension T x N x N,
+        where N is self.grid_size and T is self.num_steps."""
+
         fig, ax = plt.subplots()
 
         im = ax.imshow(animation_data[0])
@@ -121,6 +129,20 @@ class SimulationAnalysis:
 
 
     def multi_animate(self,data_array,fout_name, plot_presence = None, plot_titles = None,figsize=(8,8)):
+
+        """Pass in a (rows,cols) array of animation data arrays, each with dimension T x N x N. This
+        is equivalent to passing an array of dimension (row,cols,T,N,N)
+
+        Some special consideration is given to arrays where one dimension is 1, e.g. 3x1 or 1x2. Matplotlib 
+        removes the two-dimension, so this just requires a bit of edge casing.
+
+        Args:
+            data_array:
+            fout_name: filename to save the video
+            plot_presence: array of shape (rows,cols) with boolean values corresponding to which plots should be active. 
+                Useful for turning off axes.
+            plot_titles: array of shape (rows, cols) with names of plots
+        """
 
         num_rows,num_cols = data_array.shape[:2]
 
@@ -175,6 +197,11 @@ class SimulationAnalysis:
 
     def get_data_for_animation_population_density(self, df):
 
+        """Get data for animation. Population density is the number of agents at location (x,y) at time t.
+        
+        Returns array of dimension T x N x N for the purposes of using self.animate()
+        """
+
         data = np.zeros((self.num_steps,self.grid_size,self.grid_size),dtype=int)
 
         for index, row in tqdm(df.iterrows()):
@@ -187,6 +214,13 @@ class SimulationAnalysis:
 
     
     def get_data_for_animation_median_income(self):
+
+        """Get data for animation. Array has values array[t][y][x] = median income of agents
+        at location (x,y) at time t.
+
+        Returns:
+            numpy ndarray: array of dimension T x N x N
+        """
 
         left = self.merged_df.groupby(['time','locationID'])['income'].median().reset_index(name='Median_Income')
         df = pd.merge(left,self.locations_df,on='locationID')
@@ -218,6 +252,8 @@ class SimulationAnalysis:
 
     def animate_population_density_by_salary(self):
 
+        """use multi-animate fo generate the population density over time animations."""
+
         filename = "income_bracket_animation.mov"
         if self.check_existance(filename):
             return None
@@ -230,17 +266,22 @@ class SimulationAnalysis:
             data_array.append(data)
             plot_titles.append(income_bracket)
         
-        #add total as sixth plot
+        #add total density as sixth plot
         data_array.append(self.get_data_for_animation_population_density(self.merged_df))
         plot_titles.append('all agents')
 
+        #reshape data into a 3x2 grid
         data_array = np.array(data_array)
         data_array = data_array.reshape((3,2,*data_array.shape[1:]))
         plot_titles = np.array(plot_titles).reshape((3,2))
+        
+        #call multi-animate
         self.multi_animate(data_array, filename,plot_titles = plot_titles,figsize=(8,10))
 
 
     def animate_population_density(self):
+
+        """animate population density"""
 
         filename = 'population_density_animation.mov'
         if os.path.isfile(os.path.join(self.dirname,filename)):
@@ -248,10 +289,12 @@ class SimulationAnalysis:
             return None
 
         data = self.get_data_for_animation_population_density(self.merged_df)
-        self.animate(data,filename)
+        self.animate(data,filename,plot_title='Population Density')
 
  
     def animate_median_income(self):
+
+        """animate median income at each location over time"""
 
         filename = "median_income_animation.mov"
         if os.path.isfile(os.path.join(self.dirname,filename)):
@@ -259,10 +302,13 @@ class SimulationAnalysis:
             return None
 
         data = self.get_data_for_animation_median_income()
-        self.animate(data,filename)
+        self.animate(data,filename,plot_title = 'Median Income')
 
 
     def animate_std_income(self):
+
+        """animate standard deviation of the incomes of all agents at each location 
+        at a particular point in time."""
 
         filename = "std_income_animation.mov"
         if os.path.isfile(os.path.join(self.dirname,filename)):
@@ -274,6 +320,9 @@ class SimulationAnalysis:
 
 
     def plot_location_demographics(self,locationID):
+
+        """plot the number of agents in each income bracket over time
+        for a particular location."""
 
         df = self.merged_df[self.merged_df['locationID']==locationID]
         df = df.groupby(['income_bracket','time']).size().reset_index(name='Count')
@@ -302,6 +351,8 @@ class SimulationAnalysis:
 
     def plot_median_incomes(self):
 
+        """Plot the median income time series for each location in the grid."""
+
         df = self.get_location_median_incomes()
         for col in df.columns:
             plt.plot(df[col],color='blue',alpha=0.1)
@@ -320,6 +371,9 @@ class SimulationAnalysis:
 
     def plot_income_std(self):
 
+        """Plot the standard deviation of agents' incomes at a particular location over time,
+        for each location."""
+
         df = self.get_income_std()
         for col in df.columns:
             plt.plot(df[col],color='blue',alpha=0.1)
@@ -327,6 +381,12 @@ class SimulationAnalysis:
 
 
     def calculate_move_distances(self):
+
+        """Adds a column to the self.move_df with the distance of each move.
+        
+        Considers distances that cross the wrap-around bounderies. For example, on a
+        10 x 10 grid, locations 9,9 and 0,9 have distance 1 away.
+        """
 
         df = self.move_df
 
@@ -345,6 +405,8 @@ class SimulationAnalysis:
 
 
     def plot_move_distance_distribution(self):
+
+        """Generate distribution of all moves, regardless of when they occured."""
 
         # get move distances
         filename = 'move_distance_distribution.png'
@@ -368,6 +430,8 @@ class SimulationAnalysis:
 
 
     def plot_move_activity_by_income(self,smoothing=False):
+
+        """Plot the number of moves of agents in each income bracket at each timestep."""
 
         filename = 'move_activity_by_income_bracket.png'
         if self.check_existance(filename):
@@ -393,6 +457,8 @@ class SimulationAnalysis:
 
     def calculate_capacities(self):
 
+        """Load capacity data from self.locations_df"""
+
         N = self.grid_size
         capacities = np.empty((N,N))
 
@@ -405,11 +471,15 @@ class SimulationAnalysis:
 
     def plot_capacities(self):
         
+        """Visualize capacities on grid."""
+
         plt.imshow(self.calculate_capacities())
         plt.show()
 
 
     def calculate_flows(self):
+
+        """Calculate the aggregated number of moves at each location over the course of the simulation."""
 
         location2coords = {k:v for k,v in zip(self.locations_df['locationID'],self.locations_df['coords'])}
 
@@ -446,6 +516,9 @@ class SimulationAnalysis:
 
     def animate_flows(self):
 
+        """The number of agents moving to and from a location at each timestep.
+        
+        Not a super useful visualization because moves are infrequent and sparse."""
 
         filename = 'animate_flows.mov'
         if self.check_existance(filename):
@@ -462,6 +535,8 @@ class SimulationAnalysis:
         )
 
     def plot_flows(self):
+
+        """plot aggregated flows (see `calculate_flows()`) and capacities for reference."""
 
         filename = 'flows.png'
         if self.check_existance(filename):
@@ -489,6 +564,7 @@ class SimulationAnalysis:
 
         total_flows = inflows+outflows
 
+        plt.clf()
         fig, ax = plt.subplots(1,2)
 
         ax[0].imshow(total_flows)
@@ -499,7 +575,10 @@ class SimulationAnalysis:
 
         plt.savefig(os.path.join(self.dirname,filename))
 
+
     def plot_capacity_distribution(self):
+
+        """See the distribution of all location capacities. Expecting a power law."""
 
         filename = 'capacity_distribution.png'
         if self.check_existance(filename):
@@ -515,6 +594,10 @@ class SimulationAnalysis:
 
 
     def plot_mean_location_score(self, smoothing = True):
+
+        """Each time an agent decides to move, they score locations
+        and pick the best one. All those scores for all agents moving at each
+        time step are aggregated."""
 
         filepath = os.path.join(self.dirname,'mean_location_score.png')
         if self.check_existance(filepath):
@@ -546,6 +629,9 @@ class SimulationAnalysis:
 
     def plot_mean_move_decision_score(self):
 
+        """At each time step agents decide where to move. Plot the average of these
+        scores over time."""
+
         filepath = os.path.join(self.dirname,'mean_move_decision_score.png')
         if self.check_existance(filepath):
             return None
@@ -563,6 +649,7 @@ class SimulationAnalysis:
         plt.legend()
         plt.savefig(filepath)
 
+
 if __name__ == "__main__":
     
     foldername = 'trial_0'
@@ -577,9 +664,9 @@ if __name__ == "__main__":
     print("loaded")
     #sa.animate_flows()
     sa.plot_flows()
-    #sa.plot_capacity_distribution()
-    #sa.plot_capacities()
-    sa.plot_move_distance_distribution()
+    sa.plot_capacity_distribution()
+    sa.plot_capacities()
+    #sa.plot_move_distance_distribution()
     #sa.animate_population_density()
     #sa.animate_population_density_by_salary()
     sa.plot_move_activity_by_income(smoothing=True)

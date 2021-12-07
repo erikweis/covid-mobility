@@ -33,7 +33,7 @@ class Agent:
         m,b = 1.25,6
         self._score2moveprob = lambda s: 1/(1+np.exp(-(m*s-b)))
 
-        self.pref_pop_density = random.randint(0,10) if not pref_pop_density else pref_pop_density
+        self.pref_pop_density = random.randint(0,100) if not pref_pop_density else pref_pop_density
 
     @property
     def income(self):
@@ -137,11 +137,10 @@ class Agent:
 
         # score housing cost
         score_housing_cost = -coeff_housing_cost*self.location.housing_cost()
-
         
         ###print("location scores", score_pop_dens,score_job_opp,score_median_income)
 
-        total_score = score_pop_dens + score_job_opp + score_median_income
+        total_score = score_pop_dens + score_job_opp + score_median_income + score_housing_cost
 
         scoredict = {
             'total_score':total_score,
