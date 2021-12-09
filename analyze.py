@@ -10,6 +10,7 @@ from datetime import datetime
 import os
 import json
 from tqdm import tqdm
+import time
 
 from matplotlib.image import AxesImage
 
@@ -159,6 +160,7 @@ class SimulationAnalysis:
                     if plot_presence and not plot_presence[i][j]: continue
                     axes[j].set_title(plot_titles[i][j])
                     ims[i][j] = axes[j].imshow(data_array[i][j][t])
+                    #fig.colorbar(ims[i][j],ax=axes[j])
 
             #only columns
             elif num_cols == 1:
@@ -175,13 +177,16 @@ class SimulationAnalysis:
                         if plot_presence and not plot_presence[i][j]: continue
                         axes[i][j].set_title(plot_titles[i][j])
                         ims[i][j] = axes[i][j].imshow(data_array[i][j][t])
-                
+                        #fig.colorbar(ims[i][j],ax=axes[i][j])
+
             return ims
 
         ims = mapping(0)
         for ax in axes.flatten():
             ax.set_axis_off()
-        fig.colorbar(ims.flatten()[-1], ax=axes, shrink=0.6)
+        for im,ax in zip(ims.flatten(),axes.flatten()):
+            fig.colorbar(im,ax=ax,shrink=0.6)
+        #fig.colorbar(ims.flatten()[-1], ax=axes, shrink=0.6)
 
         def update(t):
             images = mapping(t)
@@ -193,7 +198,32 @@ class SimulationAnalysis:
         #writergif = animation.PillowWriter(fps=20) 
         writervideo = animation.FFMpegWriter(fps=10) 
         anim.save(f, writer=writervideo)
-        
+
+
+    def animate_scatter(self,animation_data, fout_name, plot_title = None,xlabel=None, ylabel=None):
+
+        """
+        Pass in animation data as an array T by 2 by N.
+        """
+
+        fig, ax = plt.subplots()
+
+        sca = ax.scatter(*np.array(animation_data[0]).transpose())
+        ax.set_title(plot_title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+
+        def update(i):
+            if animation_data[i]:
+                sca.set_offsets(animation_data[i])
+            return sca,
+        anim = animation.FuncAnimation(fig, update,interval=100,frames=self.num_steps,repeat=True)
+
+        f = os.path.join(self.dirname,fout_name)
+        #writergif = animation.PillowWriter(fps=20) 
+        writervideo = animation.FFMpegWriter(fps=10) 
+        anim.save(f, writer=writervideo)
+
 
     def get_data_for_animation_population_density(self, df):
 
@@ -352,11 +382,15 @@ class SimulationAnalysis:
     def plot_median_incomes(self):
 
         """Plot the median income time series for each location in the grid."""
+        
+        filename = 'median_incomes_by_location.png'
+        if self.check_existance(filename):
+            return None
 
         df = self.get_location_median_incomes()
         for col in df.columns:
             plt.plot(df[col],color='blue',alpha=0.1)
-        plt.show()
+        plt.savefig(os.path.join(self.dirname,filename))
 
 
     def get_income_std(self):
@@ -374,10 +408,14 @@ class SimulationAnalysis:
         """Plot the standard deviation of agents' incomes at a particular location over time,
         for each location."""
 
+        filename = 'incomes_std_by_location.png'
+        if self.check_existance(filename):
+            return None
+
         df = self.get_income_std()
         for col in df.columns:
             plt.plot(df[col],color='blue',alpha=0.1)
-        plt.show()
+        plt.savefig(os.path.join(self.dirname,filename))
 
 
     def calculate_move_distances(self):
@@ -447,7 +485,8 @@ class SimulationAnalysis:
             
             dat = df[col]
             if smoothing:
-                dat = dat.rolling(window=int(self.num_steps//50),min_periods=1).mean().values
+                window = 1 if self.num_steps<=50 else int(self.num_steps//50)
+                dat = dat.rolling(window=window,min_periods=1).mean().values
 
             ax.plot(dat,label=col)
         ax.legend()
@@ -473,8 +512,12 @@ class SimulationAnalysis:
         
         """Visualize capacities on grid."""
 
+        filename = 'capacities.png'
+        if self.check_existance(filename):
+            return None
+
         plt.imshow(self.calculate_capacities())
-        plt.show()
+        plt.savefig(os.path.join(self.dirname,filename))
 
 
     def calculate_flows(self):
@@ -567,11 +610,16 @@ class SimulationAnalysis:
         plt.clf()
         fig, ax = plt.subplots(1,2)
 
-        ax[0].imshow(total_flows)
+        im0 = ax[0].imshow(total_flows)
         ax[0].set_title('Total Flows')
+        fig.colorbar(im0,ax=ax[0],shrink = 0.5)
 
-        ax[1].imshow(self.calculate_capacities())
+        im1 = ax[1].imshow(self.calculate_capacities())
         ax[1].set_title('Location Capacities')
+        fig.colorbar(im1,ax=ax[1],shrink = 0.5)
+
+        for a in ax.flatten():
+            a.set_axis_off()
 
         plt.savefig(os.path.join(self.dirname,filename))
 
@@ -588,6 +636,8 @@ class SimulationAnalysis:
 
         out,bins = np.histogram(caps,bins=np.logspace(np.log10(1),np.log10(100), 20),density=True)
 
+        fig = plt.figure()
+        plt.title('Distribution of Location Capacities')
         plt.plot(bins[:-1],out,'o-')
         plt.yscale('log')
         plt.savefig(os.path.join(self.dirname,filename))
@@ -649,11 +699,79 @@ class SimulationAnalysis:
         plt.legend()
         plt.savefig(filepath)
 
+    def animate_median_income_source_destination(self):
 
+        median_income_df = self.get_location_median_incomes()
+
+        t=3
+        locID = 0
+        #rint(median_income_df[locID][t])
+
+
+        animation_data = [[] for _ in range(self.num_steps)]
+
+        for index, row in self.move_df.iterrows():
+
+            fromlocID = row['fromlocID']
+            tolocID = row['tolocID']
+
+            if fromlocID == tolocID:
+                continue
+
+            time = row['time']
+
+            median_income_from = median_income_df[fromlocID][time]
+            median_income_to = median_income_df[tolocID][time]
+
+            animation_data[time].append([median_income_from,median_income_to])
+
+        self.animate_scatter(
+            animation_data,
+            'median_income_source_destination.mov',
+            plot_title='Median Income of Source and Destination',
+            xlabel='Median Income of From Location',
+            ylabel='Median Income of To Location')
+
+    def plot_average_median_income_vs_standard_deviation_median_income(self):
+
+        """Look at how much median income changes over time, vs what typical median income
+        for a location is."""
+
+        filename = 'average_median_income_vs_std_median_income.png'
+        if self.check_existance(filename):
+            return None
+
+        df = self.get_location_median_incomes() #data frame has columns representing median income at each time
+
+        means, stds = [],[]
+        for locID in df.columns:
+
+            means.append(df[locID].mean())
+            stds.append(df[locID].std())
+
+        fig = plt.figure()
+        plt.scatter(means,stds)
+        plt.title('Mean vs. Standard Deviation of Median Income Time Series')
+        plt.xlabel('Mean of Median Income Time Series')
+        plt.ylabel('Standard Deviation of Median Income Time Series')
+        plt.savefig(os.path.join(self.dirname,filename))
+
+
+    def plot_agents_income_distribution(self):
+
+        filename = 'income_distribution.png'
+        if self.check_existance(filename):
+            return None
+
+        fig = plt.figure()
+        plt.hist(self.agents_df['income'],bins=20,density=True)
+        plt.title('Distribution of Agent Incomes')
+        plt.savefig(os.path.join(self.dirname,filename))
+        
 if __name__ == "__main__":
     
     foldername = 'trial_0'
-    experiment_name = 'movement1'
+    experiment_name = 'movement3'
 
     if not foldername:
         folders = [f for f in os.listdir('data/') if not f.startswith('.')]
@@ -663,19 +781,24 @@ if __name__ == "__main__":
     sa = SimulationAnalysis(experiment_name, foldername)
     print("loaded")
     #sa.animate_flows()
-    sa.plot_flows()
-    sa.plot_capacity_distribution()
-    sa.plot_capacities()
-    #sa.plot_move_distance_distribution()
-    #sa.animate_population_density()
-    #sa.animate_population_density_by_salary()
-    sa.plot_move_activity_by_income(smoothing=True)
-    #sa.plot_location_demographics(0)
-    #sa.plot_median_incomes()
-    #sa.plot_income_std()
+    # sa.plot_flows()
+    # time.sleep(1)
+    # sa.plot_capacity_distribution()
+    # time.sleep(1)
+    # #sa.plot_capacities()
+    # sa.plot_move_distance_distribution()
+    # sa.animate_population_density()
+    # #sa.animate_population_density_by_salary()
+    # sa.plot_move_activity_by_income(smoothing=True)
+    # sa.plot_location_demographics(0)
+    # sa.plot_median_incomes()
+    # sa.plot_income_std()
 
-    sa.plot_mean_location_score()
-    sa.plot_mean_move_decision_score()
+    # sa.plot_mean_location_score()
+    # sa.plot_mean_move_decision_score()
 
-    #sa.animate_median_income()
+    # sa.animate_median_income()
     #sa.animate_std_income()
+    #sa.animate_median_income_source_destination()
+    sa.plot_average_median_income_vs_standard_deviation_median_income()
+    sa.plot_agents_income_distribution()
