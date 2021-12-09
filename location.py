@@ -31,4 +31,15 @@ class Location:
         return len(self.agents)/self.capacity
 
     def housing_cost(self):
-        return self.occupancy_rate()
+
+        """We want a function that determines housing cost from two variables:
+        1) median income and 2) the demand. We use occupancy as a proxy for demand."""
+        
+        if self.occupancy_rate() >= 1:
+            return 1000000 #very high value if too many people live there
+        else:
+            
+            base_cost = 0.2*self.median_income() # a reasonable proportion of median income
+            demand_adjustment = 1500*self.occupancy_rate()/(1-self.occupancy_rate()) # depends on occupancy
+
+            return base_cost + demand_adjustment

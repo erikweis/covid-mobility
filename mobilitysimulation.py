@@ -55,7 +55,7 @@ class MobilitySimulation(Simulation):
         self.covid_intervention_time = covid_intervention_time
         
         #initialize locations
-        total_occupancy = 0.99
+        total_occupancy = 0.90
         total_capacity = num_agents/total_occupancy
         num_cities = int(grid_size**2/10)
         capacities = get_initial_capacities(grid_size,num_cities,total_capacity)
@@ -76,7 +76,8 @@ class MobilitySimulation(Simulation):
             
             loc = np.random.choice(grid.flatten()) #,p=capacities.flatten()/sum(capacities.flatten()))
             job = Job(idx = agentID,salary=np.random.exponential(scale=30000))
-            a = Agent(agentID,loc,job)
+            pref_pop_density = random.uniform(np.min(capacities),np.max(capacities))
+            a = Agent(agentID,loc,job,pref_pop_density = pref_pop_density)
             self.agents.append(a)
 
         #data
@@ -158,7 +159,7 @@ class MobilitySimulation(Simulation):
 
         #global params
         fpath_params = os.path.join(self.dirname,'params.json')
-        global_params_to_ignore = ['locations','agents','data','location_score_data','move_decision_score_data']
+        global_params_to_ignore = ['locations','agents','data','location_score_data','move_decision_score_data','agent_location_data','move_data']
         global_params = get_object_params(self,global_params_to_ignore)
         with open(fpath_params,'w') as f:
             json.dump(global_params,f)
@@ -190,6 +191,7 @@ class MobilitySimulation(Simulation):
             'score_income_match': 'mean',
             'score_housing_cost': 'mean'
         }
+
         df = df.groupby('time').agg(agg)
         df.to_csv(fpath_move_decision_score_data)
 
@@ -204,12 +206,12 @@ if __name__ == "__main__":
 
     e = Experiment(
         MobilitySimulation,
-        'movement1',
+        'movement4',
         root_dir = 'data',
         grid_size=[20],
-        num_steps = [200],
+        num_steps = [1000],
         num_agents = [10000],
-        covid_intervention_time = [100]
+        covid_intervention_time = [None]
     )
     e.run_all_trials(debug=True)
 

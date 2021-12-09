@@ -47,7 +47,7 @@ class Agent:
         coeff_income = 10**(-10)
         coeff_low_income = 10
         coeff_income_match = 10**(-5)
-        coeff_housing_cost = 10**(-4)
+        coeff_housing_cost = 0.02
 
         #### consider various factors ####
 
@@ -62,7 +62,7 @@ class Agent:
         score_income_match = coeff_income_match*abs(self.income-self.location.median_income())
 
         # housing cost
-        score_housing_cost = coeff_housing_cost*(self.location.housing_cost()**4)
+        score_housing_cost = coeff_housing_cost*self.location.housing_cost()/self.income
 
         #### calculate total score ####
         total_score = score_income + score_low_income + score_income_match + score_housing_cost
@@ -123,8 +123,8 @@ class Agent:
         
         coeff_pop_dens = 1
         coeff_job_opp = 1
-        coeff_median_income = 10**(-4)
-        coeff_housing_cost = 10
+        coeff_median_income = 5*10**(-4)
+        coeff_housing_cost = 0.01
 
         # does the location align with agents preferred population density
         score_pop_dens = -coeff_pop_dens*abs(location.capacity-self.pref_pop_density)
@@ -136,7 +136,7 @@ class Agent:
         score_median_income = coeff_median_income*abs(location.median_income()-self.income)
 
         # score housing cost
-        score_housing_cost = -coeff_housing_cost*self.location.housing_cost()
+        score_housing_cost = -coeff_housing_cost*self.location.housing_cost()/self.income
         
         ###print("location scores", score_pop_dens,score_job_opp,score_median_income)
 
