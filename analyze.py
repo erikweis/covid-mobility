@@ -43,14 +43,14 @@ class SimulationAnalysis:
     def df(self):
         # load agent locationd ata
         if not hasattr(self,'_df'):
-            self._df = pd.read_csv(os.path.join(self.dirname,'agent_location_data.csv'))
+            self._df = pd.read_csv(os.path.join(self.dirname,'agent_location_data.csv'),dtype={'xloc':int,'yloc':int})
         return self._df
 
     @property
     def move_df(self):
         # load move data
         if not hasattr(self,'_move_df'):
-            self._move_df = pd.read_csv(os.path.join(self.dirname,'move_data.csv'))
+            self._move_df = pd.read_csv(os.path.join(self.dirname,'move_data.csv'),dtype={'time':int})
         return self._move_df
     
     @property
@@ -103,6 +103,11 @@ class SimulationAnalysis:
         return False
 
 
+    @staticmethod
+    def progress_callback(i,n):
+        if i%10==0:
+            print(f"t={i}/{n}")
+
     def animate(self, animation_data, fout_name, plot_title = None):
         
         """General function for animating values on a grid. Pass in a numpy array with dimension T x N x N,
@@ -126,7 +131,7 @@ class SimulationAnalysis:
         f = os.path.join(self.dirname,fout_name)
         #writergif = animation.PillowWriter(fps=20) 
         writervideo = animation.FFMpegWriter(fps=10) 
-        anim.save(f, writer=writervideo)
+        anim.save(f, writer=writervideo,progress_callback=self.progress_callback)
 
 
     def multi_animate(self,data_array,fout_name, plot_presence = None, plot_titles = None,figsize=(8,8)):
@@ -148,48 +153,36 @@ class SimulationAnalysis:
         num_rows,num_cols = data_array.shape[:2]
 
         fig, axes = plt.subplots(*data_array.shape[:2],figsize=figsize)
+        
+        #reshape axes so it's always two dimensional
+        if num_rows == 1 or num_cols == 1:
+            axes = np.array([axes])
 
-        def mapping(t):
+        #empty image object array
+        ims = np.empty((num_rows,num_cols),dtype=AxesImage)
+
+        def set_data(t):
             
-            ims = np.empty((num_rows,num_cols),dtype=AxesImage)
             
-            #only rows
-            if num_rows == 1:
-                i=0
+            for i in range(num_rows):
                 for j in range(num_cols):
                     if plot_presence and not plot_presence[i][j]: continue
-                    axes[j].set_title(plot_titles[i][j])
-                    ims[i][j] = axes[j].imshow(data_array[i][j][t])
-                    #fig.colorbar(ims[i][j],ax=axes[j])
+                    axes[i][j].set_title(plot_titles[i][j])
 
-            #only columns
-            elif num_cols == 1:
-                j=0
-                for i in range(num_rows):
-                    if plot_presence and not plot_presence[i][j]: continue
-                    axes[i].set_title(plot_titles[i][j])
-                    ims[i][j] = axes[i].imshow(data_array[i][j][t])
-
-            # multiple rows and columns
-            else:
-                for i in range(num_rows):
-                    for j in range(num_cols):
-                        if plot_presence and not plot_presence[i][j]: continue
-                        axes[i][j].set_title(plot_titles[i][j])
+                    if t==0:
                         ims[i][j] = axes[i][j].imshow(data_array[i][j][t])
-                        #fig.colorbar(ims[i][j],ax=axes[i][j])
-
+                    else:
+                        ims[i][j].set_array(data_array[i][j][t])
             return ims
 
-        ims = mapping(0)
+        ims = set_data(0)
         for ax in axes.flatten():
             ax.set_axis_off()
         for im,ax in zip(ims.flatten(),axes.flatten()):
             fig.colorbar(im,ax=ax,shrink=0.6)
-        #fig.colorbar(ims.flatten()[-1], ax=axes, shrink=0.6)
 
         def update(t):
-            images = mapping(t)
+            images = set_data(t)
             return images.flatten()
 
         anim = animation.FuncAnimation(fig, update,interval=100,frames=self.num_steps,repeat=True)
@@ -197,7 +190,7 @@ class SimulationAnalysis:
         f = os.path.join(self.dirname,fout_name)
         #writergif = animation.PillowWriter(fps=20) 
         writervideo = animation.FFMpegWriter(fps=10) 
-        anim.save(f, writer=writervideo)
+        anim.save(f, writer=writervideo,progress_callback=self.progress_callback)
 
 
     def animate_scatter(self,animation_data, fout_name, plot_title = None,xlabel=None, ylabel=None):
@@ -222,25 +215,25 @@ class SimulationAnalysis:
         f = os.path.join(self.dirname,fout_name)
         #writergif = animation.PillowWriter(fps=20) 
         writervideo = animation.FFMpegWriter(fps=10) 
-        anim.save(f, writer=writervideo)
+        anim.save(f, writer=writervideo,progress_callback=self.progress_callback)
 
 
-    def get_data_for_animation_population_density(self, df):
+    # def get_data_for_animation_population_density(self, df):
 
-        """Get data for animation. Population density is the number of agents at location (x,y) at time t.
+    #     """Get data for animation. Population density is the number of agents at location (x,y) at time t.
         
-        Returns array of dimension T x N x N for the purposes of using self.animate()
-        """
+    #     Returns array of dimension T x N x N for the purposes of using self.animate()
+    #     """
 
-        data = np.zeros((self.num_steps,self.grid_size,self.grid_size),dtype=int)
+    #     data = np.zeros((self.num_steps,self.grid_size,self.grid_size),dtype=int)
 
-        for index, row in tqdm(df.iterrows()):
-            t = row['time']
-            x = row['xloc']
-            y = row['yloc']
-            data[t][y][x] += 1
+    #     for index, row in tqdm(df.iterrows()):
+    #         t = row['time']
+    #         x = row['xloc']
+    #         y = row['yloc']
+    #         data[t][y][x] += 1
 
-        return data
+    #     return data
 
     
     def get_data_for_animation_median_income(self):
@@ -288,24 +281,40 @@ class SimulationAnalysis:
         if self.check_existance(filename):
             return None
 
-        data_array = []
-        plot_titles = []
-        for income_bracket in self.merged_df['income_bracket'].unique():
-            df = self.merged_df
-            data = self.get_data_for_animation_population_density(df[df['income_bracket'] == income_bracket])
-            data_array.append(data)
-            plot_titles.append(income_bracket)
+        
+
+        T, N = self.num_steps, self.grid_size
+        data = {k:np.zeros((T,N,N),dtype=int) for k in self.merged_df['income_bracket'].unique()}
+
+        df = self.merged_df.groupby(['time','locationID','income_bracket']).agg({'agentID':'count','xloc':'first','yloc':'first'})
+        df.reset_index(inplace=True)
+        df.rename(columns={'agentID':'count'},inplace=True)
+        print(df)
+
+        for index, row in df.iterrows():
+            ib = row['income_bracket']
+            t = row['time']
+            count = row['count']
+            
+            if count>0:
+                xloc, yloc = int(row['xloc']),int(row['yloc'])
+                data[ib][t][xloc][yloc] = row['count']
+        
+        data_array = list(data.values())
+        plot_titles = list(data.keys())
         
         #add total density as sixth plot
-        data_array.append(self.get_data_for_animation_population_density(self.merged_df))
+        total = np.sum(d for d in data_array)
+        data_array.append(total)
+
         plot_titles.append('all agents')
 
-        #reshape data into a 3x2 grid
+        # #reshape data into a 3x2 grid
         data_array = np.array(data_array)
         data_array = data_array.reshape((3,2,*data_array.shape[1:]))
         plot_titles = np.array(plot_titles).reshape((3,2))
         
-        #call multi-animate
+        # #call multi-animate
         self.multi_animate(data_array, filename,plot_titles = plot_titles,figsize=(8,10))
 
 
@@ -320,6 +329,16 @@ class SimulationAnalysis:
 
         data = self.get_data_for_animation_population_density(self.merged_df)
         self.animate(data,filename,plot_title='Population Density')
+
+
+    def animate_occupancy(self):
+
+        filename = 'occupancy_animation.mov'
+        if os.path.isfile(os.path.join(self.dirname,filename)):
+            print("file already created")
+            return None
+
+        data = self.get_data_for
 
  
     def animate_median_income(self):
@@ -516,7 +535,11 @@ class SimulationAnalysis:
         if self.check_existance(filename):
             return None
 
-        plt.imshow(self.calculate_capacities())
+
+        fig,ax  = plt.subplots()
+
+        im = ax.imshow(self.calculate_capacities())
+        fig.colorbar(im,ax=ax)
         plt.savefig(os.path.join(self.dirname,filename))
 
 
@@ -703,11 +726,6 @@ class SimulationAnalysis:
 
         median_income_df = self.get_location_median_incomes()
 
-        t=3
-        locID = 0
-        #rint(median_income_df[locID][t])
-
-
         animation_data = [[] for _ in range(self.num_steps)]
 
         for index, row in self.move_df.iterrows():
@@ -768,10 +786,41 @@ class SimulationAnalysis:
         plt.title('Distribution of Agent Incomes')
         plt.savefig(os.path.join(self.dirname,filename))
         
+
+    def animate_median_income_capacity(self):
+
+        filename = 'median_income_vs_capacity.mov'
+        if self.check_existance(filename):
+            return None
+
+        left = self.merged_df.groupby(['time','locationID'])['income'].median().reset_index(name='Median_Income')
+        df = pd.merge(left,self.locations_df,on='locationID')
+
+        
+        animation_data = [[] for _ in range(self.num_steps)]
+
+        for index, row in df.iterrows():
+
+            time = row['time']
+            mi = row['Median_Income']
+            cap = row['capacity']
+
+            animation_data[time].append([mi,cap])
+
+        self.animate_scatter(
+            animation_data,
+            filename,
+            plot_title='Median Income vs. Capacity of Locations',
+            xlabel='Median Income',
+            ylabel='Capacity'
+        )
+
+
+
 if __name__ == "__main__":
     
     foldername = 'trial_0'
-    experiment_name = 'movement3'
+    experiment_name = 'normal_pref_pop_dens2'
 
     if not foldername:
         folders = [f for f in os.listdir('data/') if not f.startswith('.')]
@@ -780,25 +829,27 @@ if __name__ == "__main__":
 
     sa = SimulationAnalysis(experiment_name, foldername)
     print("loaded")
-    #sa.animate_flows()
-    # sa.plot_flows()
-    # time.sleep(1)
-    # sa.plot_capacity_distribution()
-    # time.sleep(1)
-    # #sa.plot_capacities()
-    # sa.plot_move_distance_distribution()
-    # sa.animate_population_density()
-    # #sa.animate_population_density_by_salary()
-    # sa.plot_move_activity_by_income(smoothing=True)
-    # sa.plot_location_demographics(0)
-    # sa.plot_median_incomes()
-    # sa.plot_income_std()
+    sa.animate_flows()
+    sa.plot_flows()
+    time.sleep(1)
+    sa.plot_capacity_distribution()
+    time.sleep(1)
+    sa.plot_capacities()
+    sa.plot_move_distance_distribution()
+    sa.animate_population_density()
+    sa.animate_population_density_by_salary()
+    sa.plot_move_activity_by_income(smoothing=True)
+    sa.plot_location_demographics(0)
+    sa.plot_median_incomes()
+    sa.plot_income_std()
 
-    # sa.plot_mean_location_score()
-    # sa.plot_mean_move_decision_score()
+    sa.plot_mean_location_score()
+    sa.plot_mean_move_decision_score()
 
-    # sa.animate_median_income()
-    #sa.animate_std_income()
-    #sa.animate_median_income_source_destination()
+    sa.animate_median_income()
+    sa.animate_std_income()
+    sa.animate_median_income_source_destination()
     sa.plot_average_median_income_vs_standard_deviation_median_income()
     sa.plot_agents_income_distribution()
+
+    sa.animate_median_income_capacity()
