@@ -44,35 +44,38 @@ class Agent:
         #### define coefficients ####
         # set coefficients such that each factor (on average) contributes equall
         # to the overall score
-        coeff_income = 10**(-10)
-        coeff_low_income = 10
-        coeff_income_match = 10**(-5)
-        coeff_housing_cost = 0.02
+        # coeff_income = 10**(-10)
+        # coeff_low_income = 10
+        # coeff_income_match = 10**(-5)
+        # coeff_housing_cost = 0.02
 
         #### consider various factors ####
 
         # higher income means likely to move farther
-        score_income = coeff_income*(self.income**2)
+        # score_income = coeff_income*(self.income**2)
 
         # very low income also means likely to move (getting kicked out)
-        s = 1-coeff_low_income*(1/(self.income+1))
-        score_low_income = 0 if s<0 else s
+        # s = 1-coeff_low_income*(1/(self.income+1))
+        # score_low_income = 0 if s<0 else s
 
         # if living below means (in a rich area) or above means (a poor area), more likely to move
-        score_income_match = coeff_income_match*abs(self.income-self.location.median_income())
+        # score_income_match = coeff_income_match*abs(self.income-self.location.median_income())
 
         # housing cost
-        score_housing_cost = coeff_housing_cost*self.location.housing_cost()/self.income
+        coeff = 0.01
+        score_housing_cost = coeff*self.location.housing_cost()/self.income
 
         #### calculate total score ####
-        total_score = score_income + score_low_income + score_income_match + score_housing_cost
+        total_score =  score_housing_cost # + score_income + score_low_income + score_income_match +
 
         score_dict = {
             'total_score': total_score,
-            'score_income': score_income,
-            'score_income_match': score_income_match,
             'score_housing_cost': score_housing_cost
         }
+
+        
+            # 'score_income': score_income,
+            # 'score_income_match': score_income_match,
 
         # normalization should be set such that the expected move rate overall matches
         # emperical data
@@ -122,7 +125,7 @@ class Agent:
     def score_location(self,location):
         
         coeff_pop_dens = 1
-        coeff_job_opp = 1
+        coeff_job_opp = 3
         coeff_median_income = 5*10**(-4)
         coeff_housing_cost = 0.01
 
