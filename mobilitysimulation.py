@@ -9,6 +9,7 @@ import json
 import networkx as nx
 import copy
 import pandas as pd
+from scipy.stats import truncnorm
 
 from parameter_sweep import Simulation, Experiment
 
@@ -70,14 +71,19 @@ class MobilitySimulation(Simulation):
 
         self.locations = grid
 
+        #initialize population density
+        clip_a, clip_b = np.min(capacities),np.max(capacities)
+        mean, std = 0.5, 0.5
+        a, b = (clip_a - mean) / std, (clip_b - mean) / std
+        preferred_pop_densities = truncnorm.rvs(a,b, size=num_agents)
+
         #initialize agents
         self.agents = []
-        for agentID in range(self.num_agents):
+        for agentID, pop_dens in enumerate(preferred_pop_densities):
             
             loc = np.random.choice(grid.flatten()) #,p=capacities.flatten()/sum(capacities.flatten()))
             job = Job(idx = agentID,salary=np.random.exponential(scale=30000))
-            pref_pop_density = random.uniform(np.min(capacities),np.max(capacities))
-            a = Agent(agentID,loc,job,pref_pop_density = pref_pop_density)
+            a = Agent(agentID,loc,job,pref_pop_density = pop_dens)
             self.agents.append(a)
 
         #data
@@ -187,10 +193,10 @@ class MobilitySimulation(Simulation):
         df = pd.DataFrame(self.move_decision_score_data)
         agg = {
             'total_score':'mean',
-            'score_income': 'mean',
-            'score_income_match': 'mean',
             'score_housing_cost': 'mean'
         }
+            #        'score_income': 'mean',
+            #'score_income_match': 'mean',
 
         df = df.groupby('time').agg(agg)
         df.to_csv(fpath_move_decision_score_data)
@@ -206,12 +212,12 @@ if __name__ == "__main__":
 
     e = Experiment(
         MobilitySimulation,
-        'movement4',
+        'test',
         root_dir = 'data',
         grid_size=[20],
-        num_steps = [1000],
+        num_steps = [5],
         num_agents = [10000],
-        covid_intervention_time = [None]
+        covid_intervention_time = [250]
     )
     e.run_all_trials(debug=True)
 
