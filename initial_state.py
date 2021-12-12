@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import multivariate_normal
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 
 def get_initial_capacities(grid_size, num_cities,total_occupancy):
     
@@ -9,10 +10,13 @@ def get_initial_capacities(grid_size, num_cities,total_occupancy):
     pos = np.dstack((x, y))
 
     vals = np.zeros((N,N))
-    for _ in range(num_cities):
+
+    sizes = np.random.zipf(2.5,size=num_cities)
+
+    for size in sizes:
         xloc,yloc = np.random.randint(N,size=2)
-        size = np.random.zipf(2)
-        vals += size*multivariate_normal([xloc,yloc],[[size, 0], [0, size]]).pdf(pos)
+        width = (np.log(size)+1)*2
+        vals += size*multivariate_normal([xloc,yloc],[[width, 0], [0, width]]).pdf(pos)
     
     #TODO wrap around by creating a city with location in middle of grid and shifting to location
 
@@ -30,7 +34,7 @@ def get_initial_capacities(grid_size, num_cities,total_occupancy):
 
 def plot_capacities(caps):
 
-    plt.imshow(caps)
+    plt.imshow(caps,norm=colors.LogNorm())
     plt.colorbar()
     plt.show()
 
@@ -47,9 +51,9 @@ def plot_capacity_distribution(caps):
 
 if __name__ == "__main__":
 
-    caps = get_initial_capacities(30,50,5000)
+    caps = get_initial_capacities(20,20,5000)
 
     plot_capacities(caps)
-    plot_capacity_distribution(caps)
+    #plot_capacity_distribution(caps)
     
 
