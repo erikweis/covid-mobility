@@ -989,6 +989,43 @@ class SimulationAnalysis:
         pass
 
 
+    def inequality_2020(self, values):
+        top20, bottom20 = values.quantile([0.8, 0.2])
+        return top20/bottom20
+
+    
+    def get_data_for_animation_inequality(self):
+        """Get data for animation. Array has values [t][y][x] which correspond to the 
+        mean income at location (x,y) at time t.
+        """
+        # Filter out the data for low and high income brackets
+        # low = self.merged_df[self.merged_df['income_bracket'] == 'low']
+        # high = self.merged_df[self.merged_df['income_bracket'] == 'high']
+
+        income_df = self.merged_df.groupby(['time', 'locationID'])['income']
+        top20, bottom20 = income_df['income'].quantile([.8, .2])
+        income_df['inequality_score'] = top20/bottom20
+        df = pd.merge(income_df, self.locations_df, on='locationID')
+
+        data = np.zeros((self.num_steps, self.grid_size, self.grid_size))
+
+        for _, row in df.iterrows():
+            t = row['time']
+            x,y = row['coords']
+            data[t][y][x] = row['inequality_score']
+        
+        return data
+    
+    
+    def animate_population_inequality(self):
+        """Animate population inequality using 20:20 rule."""
+        filename = "population_inequality_animation.mov"
+        if self.check_existance(filename):
+            return None
+        
+        data = self.get_data_for_animation_mean_income()
+        self.animate(data, filename, plot_title = 'Inequality')
+
         
 if __name__ == "__main__":
     
