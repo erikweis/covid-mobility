@@ -239,7 +239,6 @@ class MobilitySimulation(Simulation):
         df.to_csv(fpath_location_score_data)
 
 
-
     def on_finish(self):
         self.save_data()
 
@@ -250,12 +249,12 @@ if __name__ == "__main__":
 
     e = Experiment(
         MobilitySimulation,
-        'update_loc_score_data',
+        'state_of_art',
         root_dir = 'data',
         grid_size=[20],
-        num_steps = [20],
+        num_steps = [1000],
         num_agents = [10000],
-        covid_intervention_time = [10],
+        covid_intervention_time = [500],
         income_distribution = ['power'],
     )
     e.run_all_trials(debug=True)

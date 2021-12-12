@@ -968,19 +968,20 @@ class SimulationAnalysis:
         
     
     def get_difference_location_score(self):
-        
-        print(self.location_score_df.head())
+
         df = pd.pivot_table(self.location_score_df,index='time',columns='agentID',values='total_score')
-        
 
         delta_loc_scores = []
         for agentID in df.columns:
-            vals = df[agentID]
+
+            vals = df[agentID].values
             
             pre_covid_mean = np.mean(vals[:self.covid_intervention_time])
             post_covid_mean = np.mean(vals[self.covid_intervention_time:])
 
             delta_loc_scores.append(post_covid_mean-pre_covid_mean) #add difference to data
+
+        assert len(delta_loc_scores) == self.num_agents
 
         return delta_loc_scores
 
@@ -992,7 +993,7 @@ class SimulationAnalysis:
 if __name__ == "__main__":
     
     foldername = 'trial_0'
-    experiment_name = 'update_loc_score_data'
+    experiment_name = 'state_of_art'
 
     if not foldername:
         folders = [f for f in os.listdir('data/') if not f.startswith('.')]
@@ -1001,36 +1002,36 @@ if __name__ == "__main__":
 
     sa = SimulationAnalysis(experiment_name, foldername)
     print("loaded")
-    # sa.plot_flows()
-    # time.sleep(1)
-    # sa.plot_capacity_distribution()
-    # time.sleep(1)
-    # sa.plot_capacities()
-    # sa.plot_move_distance_distribution()
-    # sa.animate_population_density()
-    # sa.animate_population_density_by_salary()
-    # sa.plot_move_activity_by_income(smoothing=True)
-    # #sa.plot_location_demographics(0)
-    # sa.plot_median_incomes()
-    # sa.plot_income_std()
+    sa.plot_flows()
+    time.sleep(1)
+    sa.plot_capacity_distribution()
+    time.sleep(1)
+    sa.plot_capacities()
+    sa.plot_move_distance_distribution()
+    sa.animate_population_density()
+    sa.animate_population_density_by_salary()
+    sa.plot_move_activity_by_income(smoothing=True)
+    #sa.plot_location_demographics(0)
+    sa.plot_median_incomes()
+    sa.plot_income_std()
 
-    # sa.plot_mean_location_score()
-    # sa.plot_mean_move_decision_score()
+    sa.plot_mean_location_score()
+    sa.plot_mean_move_decision_score()
 
-    # sa.animate_median_income()
-    # sa.animate_std_income()
-    # sa.animate_median_income_source_destination()
-    # sa.plot_average_median_income_vs_standard_deviation_median_income()
-    # sa.plot_agents_income_distribution()
+    sa.animate_median_income()
+    sa.animate_std_income()
+    sa.animate_median_income_source_destination()
+    sa.plot_average_median_income_vs_standard_deviation_median_income()
+    sa.plot_agents_income_distribution()
 
-    # # sa.animate_median_income_capacity()
+    # sa.animate_median_income_capacity()
 
-    # sa.plot_location_score_by_income()
+    sa.plot_location_score_by_income()
 
-    # # sa.animate_median_income_std_income()
+    # sa.animate_median_income_std_income()
 
-    # sa.plot_mean_pre_post_covid()
+    sa.plot_mean_pre_post_covid()
 
-    # #sa.plot_capacity_preference_vs_availability()
+    sa.plot_capacity_preference_vs_availability()
 
     sa.get_difference_location_score()
