@@ -49,11 +49,14 @@ class MobilitySimulation(Simulation):
 
         self._dirname = dirname
 
+        # save properties
         self.num_agents = num_agents
         self.grid_size = grid_size
         self.num_steps = num_steps
         self.proportion_remote_workers = proportion_remote_workers
         self.covid_intervention_time = covid_intervention_time
+        for k,v in kwargs.items():
+            setattr(self,k,v)
         
         #initialize locations
         total_occupancy = 0.90
@@ -71,28 +74,33 @@ class MobilitySimulation(Simulation):
 
         self.locations = grid
 
-        #initialize population density
+        #initialize preferred population density distribution
         min_cap, max_cap = np.min(capacities),np.max(capacities)
-        # mean, std = 0.5, 0.5
-        # a, b = (min_cap - mean) / std, (max_cap - mean) / std
-        # preferred_pop_densities = truncnorm.rvs(a,b, size=num_agents)
-
         mean = np.log(np.mean(capacities.flatten()))
         sigma = 0.25
         self.preferred_pop_density_params = {'mean':mean,'sigma':sigma}
         preferred_pop_densities = np.random.lognormal(mean=mean,sigma=sigma,size=num_agents)
+        
+        #initialize income distribution
+        mean_income = 30000
+        if hasattr(self,'income_distribution') and self.income_distribution == 'power':
+            incomes = np.random.lognormal(mean=np.log(mean_income),sigma=1.6,size=self.num_agents)
+        else:
+            incomes = np.random.exponential(scale=mean_income,size=self.num_agents)
+        
+        # add salary min and max for convenience
+        incomes = [i if i>1000 else 1000 for i in incomes]
+        incomes = [i if i<200000 else 200000 for i in incomes]
 
         #initialize agents
         self.agents = []
-        for agentID, pop_dens in enumerate(preferred_pop_densities):
+        for agentID in range(self.num_agents):
             
             #calculate location
             loc = np.random.choice(grid.flatten(), p=capacities.flatten()/sum(capacities.flatten()))
             
-            #calculate salary
-            salary = np.random.exponential(scale=30000)
-            max_salary = 200000
-            salary = max_salary if salary> max_salary else salary
+            salary = incomes[agentID]
+            pop_dens = preferred_pop_densities[agentID]
             
             job = Job(idx = agentID,salary=salary)
             a = Agent(agentID,loc,job,pref_pop_density = pop_dens)
@@ -127,13 +135,6 @@ class MobilitySimulation(Simulation):
             combo_dict = {**move_dict,**loc_score_dict}
             self.possible_location_score_data.append(combo_dict)
 
-        location_score_dict=  {
-            'time':time,
-            'agentID':agent.idx,
-            'locationID':new_loc.idx,
-            'total_score':agent.score_location(new_loc)['total_score'],
-        }
-        self.location_score_data.append(location_score_dict)
 
     def update(self,t):
 
@@ -151,6 +152,15 @@ class MobilitySimulation(Simulation):
 
             self.agent_location_data.append([t,*agent.get_tidy_state()]) #save state to data
             self.move_decision_score_data.append({'time':t,'agent_id':agent.idx,**score_dict})
+
+            location_score_dict=  {
+                'time':t,
+                'agentID':agent.idx,
+                'locationID':agent.location.idx,
+                'total_score':agent.score_location(agent.location)['total_score'],
+            }
+            self.location_score_data.append(location_score_dict)
+
 
     def run_simulation(self):
 
@@ -240,13 +250,13 @@ if __name__ == "__main__":
 
     e = Experiment(
         MobilitySimulation,
-        'analayze5',
+        'update_loc_score_data',
         root_dir = 'data',
         grid_size=[20],
-        num_steps = [1000],
+        num_steps = [20],
         num_agents = [10000],
-        covid_intervention_time = [500],
-
+        covid_intervention_time = [10],
+        income_distribution = ['power'],
     )
     e.run_all_trials(debug=True)
 

@@ -56,35 +56,30 @@ class Agent:
 
 
     def decide_where_to_move(self,all_locations,**kwargs):
-        
-        # if 'move_choice_params' in kwargs:
-        #     mcp = kwargs['move_choice_params']
-        #     if isinstance(mcp,callable):
-        #         num_choices, move_size_exp = mcp(self.income)
-        #     else:
-        #         num_choices, move_size_exp = mcp
-        # else:
-        #     num_choices, move_size_exp = 10,3
 
         choices = get_relative_move_coordinates(*get_move_choice_params(self.income))
 
         # get possible locations to move
         N, m_ = all_locations.shape
         x0,y0 = self.location.coords
-        possible_locations = [all_locations[(x0+x)%N][(y0+y)%N] for x,y in choices]
+        possible_locations = [all_locations[(x0+x)%N][(y0+y)%N] for x,y in choices] #convert relative coordinates to absolute
+        possible_locations = [p for p in possible_locations if p.occupancy_rate() < 1 or p.idx == self.location.idx] #filter out overcrowded locations
 
-        possible_location_scores = [self.score_location(l) for l in possible_locations]
+        #score locations
+        possible_location_scores = [self.score_location(l,**kwargs) for l in possible_locations]
         total_scores = [s['total_score'] for s in possible_location_scores]
         
+        # select best location
         new_location = possible_locations[np.argmax(total_scores)]
         old_location = self.location
 
-        return old_location,new_location, possible_location_scores
+        return old_location, new_location, possible_location_scores
 
-    def score_location(self,location):
+
+    def score_location(self,location,coeff_job_opp = 3,**kwargs):
         
         coeff_pop_dens = 1
-        coeff_job_opp = 3
+        coeff_job_opp = coeff_job_opp
         coeff_median_income = 5*10**(-4)
         coeff_housing_cost = 0.01
 
@@ -100,7 +95,6 @@ class Agent:
         # score housing cost
         score_housing_cost = -coeff_housing_cost*self.location.housing_cost()/self.income
         
-        ###print("location scores", score_pop_dens,score_job_opp,score_median_income)
 
         total_score = score_pop_dens + score_job_opp + score_median_income + score_housing_cost
 

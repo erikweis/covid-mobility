@@ -3,7 +3,7 @@ from scipy.stats import multivariate_normal
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
-def get_initial_capacities(grid_size, num_cities,total_occupancy):
+def get_initial_capacities(grid_size, num_cities, total_occupancy):
     
     N = grid_size
     x, y = np.mgrid[0:N:1, 0:N:1]
@@ -29,6 +29,8 @@ def get_initial_capacities(grid_size, num_cities,total_occupancy):
     capacities = vals*scaling_factor
     capacities = capacities + np.ones((N,N)) #add remaining N^2 evenly across board
 
+    assert np.isclose(np.sum(capacities),total_occupancy)
+
     return np.round(capacities).astype(int)
 
 
@@ -51,7 +53,7 @@ def plot_capacity_distribution(caps):
 
 if __name__ == "__main__":
 
-    caps = get_initial_capacities(20,20,5000)
+    caps = get_initial_capacities(50,100,100000)
 
     plot_capacities(caps)
     #plot_capacity_distribution(caps)

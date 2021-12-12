@@ -176,7 +176,6 @@ class SimulationAnalysis:
 
         def set_data(t):
             
-            
             for i in range(num_rows):
                 for j in range(num_cols):
                     if plot_presence and not plot_presence[i][j]: continue
@@ -316,19 +315,32 @@ class SimulationAnalysis:
 
         filename = 'population_density_animation.mov'
         if self.check_existance(filename):
-            return None
+              return None
 
-        data = self.get_data_for_animation_population_density(self.merged_df)
-        self.animate(data,filename,plot_title='Population Density')
+        T, N = self.num_steps, self.grid_size
+        data = np.zeros((T,N,N),dtype=int)
+        data_occupancy = np.zeros((T,N,N))
 
+        df = self.merged_df.groupby(['time','locationID']).agg({'agentID':'count','xloc':'first','yloc':'first'})
+        df.reset_index(inplace=True)
+        df.rename(columns={'agentID':'count'},inplace=True)
 
-    def animate_occupancy(self):
+        loc_df = self.locations_df
+        locID2capacity = {idx:cap for idx, cap in zip(loc_df['locationID'].values,loc_df['capacity'].values)}
 
-        filename = 'occupancy_animation.mov'
-        if self.check_existance(filename):
-            return None
+        for index, row in tqdm(df.iterrows()):
+            t = row['time']
+            count = row['count']
+            
+            if count>0:
+                xloc, yloc = int(row['xloc']),int(row['yloc'])
+                data[t][yloc][xloc] = row['count']
+                data_occupancy[t][yloc][xloc] = row['count']/locID2capacity[row['locationID']]
 
-        data = self.get_data_for
+        data_array = np.array([[data,data_occupancy]])
+        plot_titles = np.array([['Population Density','Occupancy']])
+
+        self.multi_animate(data_array,filename,plot_titles=plot_titles)
 
  
     def animate_median_income(self):
@@ -485,7 +497,7 @@ class SimulationAnalysis:
                        num=10)
         vals, bins_ = np.histogram(move_distances,bins=bins)
 
-        plt.plot(bins[:-1],vals,'o-')
+        plt.plot(bins[1:],vals,'o-')
         plt.title('Move Distance Distribution')
         plt.savefig(os.path.join(self.dirname,filename))
 
@@ -684,7 +696,7 @@ class SimulationAnalysis:
         and pick the best one. All those scores for all agents moving at each
         time step are aggregated."""
 
-        filepath = os.path.join(self.dirname,'mean_location_score.png')
+        filepath = os.path.join(self.dirname,'possible_mean_location_score.png')
         if self.check_existance(filepath):
             return None
 
@@ -709,7 +721,7 @@ class SimulationAnalysis:
             ax.plot(vals,label=col)
 
         plt.legend()
-        plt.title('Mean Location Scores at Each Time Step')
+        plt.title('Mean Possible Location Scores at Each Time Step')
         plt.savefig(filepath)
 
 
@@ -864,7 +876,7 @@ class SimulationAnalysis:
         if self.check_existance(filename):
             pass #return None
 
-        if self.covid_intervention_time > self.num_steps:
+        if self.covid_intervention_time and self.covid_intervention_time > self.num_steps:
             print("Not applicable")
             return None
 
@@ -930,9 +942,6 @@ class SimulationAnalysis:
         plt.savefig(os.path.join(self.dirname,filename2)) 
 
 
-
-
-
     def plot_capacity_preference_vs_availability(self):
 
         filename='capacity_preference_availability.png'
@@ -957,11 +966,33 @@ class SimulationAnalysis:
         plt.legend()
         plt.show()
         
+    
+    def get_difference_location_score(self):
+        
+        print(self.location_score_df.head())
+        df = pd.pivot_table(self.location_score_df,index='time',columns='agentID',values='total_score')
+        
+
+        delta_loc_scores = []
+        for agentID in df.columns:
+            vals = df[agentID]
+            
+            pre_covid_mean = np.mean(vals[:self.covid_intervention_time])
+            post_covid_mean = np.mean(vals[self.covid_intervention_time:])
+
+            delta_loc_scores.append(post_covid_mean-pre_covid_mean) #add difference to data
+
+        return delta_loc_scores
+
+    def get_inequality_score(self):
+        pass
+
+
         
 if __name__ == "__main__":
     
     foldername = 'trial_0'
-    experiment_name = 'analayze5'
+    experiment_name = 'update_loc_score_data'
 
     if not foldername:
         folders = [f for f in os.listdir('data/') if not f.startswith('.')]
@@ -976,7 +1007,7 @@ if __name__ == "__main__":
     # time.sleep(1)
     # sa.plot_capacities()
     # sa.plot_move_distance_distribution()
-    # #sa.animate_population_density()
+    # sa.animate_population_density()
     # sa.animate_population_density_by_salary()
     # sa.plot_move_activity_by_income(smoothing=True)
     # #sa.plot_location_demographics(0)
@@ -992,12 +1023,14 @@ if __name__ == "__main__":
     # sa.plot_average_median_income_vs_standard_deviation_median_income()
     # sa.plot_agents_income_distribution()
 
-    # sa.animate_median_income_capacity()
+    # # sa.animate_median_income_capacity()
 
-    sa.plot_location_score_by_income()
+    # sa.plot_location_score_by_income()
 
-    # sa.animate_median_income_std_income()
+    # # sa.animate_median_income_std_income()
 
-    sa.plot_mean_pre_post_covid()
+    # sa.plot_mean_pre_post_covid()
 
-    #sa.plot_capacity_preference_vs_availability()
+    # #sa.plot_capacity_preference_vs_availability()
+
+    sa.get_difference_location_score()
