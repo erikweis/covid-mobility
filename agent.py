@@ -5,7 +5,7 @@ import random
 
 from numpy import histogram
 import numpy as np
-from scipy.special import expit
+from tools.move_choice import get_relative_move_coordinates, get_move_choice_params
 
 from location import Location
 
@@ -41,27 +41,6 @@ class Agent:
 
     def decide_to_move(self):
 
-        #### define coefficients ####
-        # set coefficients such that each factor (on average) contributes equall
-        # to the overall score
-        # coeff_income = 10**(-10)
-        # coeff_low_income = 10
-        # coeff_income_match = 10**(-5)
-        # coeff_housing_cost = 0.02
-
-        #### consider various factors ####
-
-        # higher income means likely to move farther
-        # score_income = coeff_income*(self.income**2)
-
-        # very low income also means likely to move (getting kicked out)
-        # s = 1-coeff_low_income*(1/(self.income+1))
-        # score_low_income = 0 if s<0 else s
-
-        # if living below means (in a rich area) or above means (a poor area), more likely to move
-        # score_income_match = coeff_income_match*abs(self.income-self.location.median_income())
-
-        # housing cost
         coeff = 0.01
         score_housing_cost = coeff*self.location.housing_cost()/self.income
 
@@ -73,45 +52,28 @@ class Agent:
             'score_housing_cost': score_housing_cost
         }
 
-        
-            # 'score_income': score_income,
-            # 'score_income_match': score_income_match,
-
-        # normalization should be set such that the expected move rate overall matches
-        # emperical data
-        
         decision = (random.random() < self._score2moveprob(total_score))
 
         return decision, score_dict
 
 
-    def decide_where_to_move(self,all_locations):
+    def decide_where_to_move(self,all_locations,**kwargs):
         
-        # higher salary people have the resources to search more places
-        number_of_choices = 10 #function depending on salary
+        # if 'move_choice_params' in kwargs:
+        #     mcp = kwargs['move_choice_params']
+        #     if isinstance(mcp,callable):
+        #         num_choices, move_size_exp = mcp(self.income)
+        #     else:
+        #         num_choices, move_size_exp = mcp
+        # else:
+        #     num_choices, move_size_exp = 10,3
 
-        # larger power law exponent (a), where x^(1/a), for higher income
-        # higher income people have the resources to move further
-        a = 2
-
-        #create random x and random y drawn from power law distribution
-        xs = np.random.zipf(3, size=number_of_choices)
-        ys = np.random.zipf(3, size=number_of_choices)
-        #random sign to account for moving left and right, up and down
-        signs_x = np.random.choice([-1,1],size=number_of_choices)
-        signs_y = np.random.choice([-1,1],size=number_of_choices)
-        xs = np.floor(xs*signs_x).astype(int)
-        ys = np.floor(ys*signs_y).astype(int)
-
-        #add current location, if it's the highest score don't move
-        xs = np.append(xs,[0]); ys = np.append(ys,[0]);
-
-        # reference coordinates
-        N, M = all_locations.shape
-        x0,y0 = self.location.coords
+        choices = get_relative_move_coordinates(*get_move_choice_params(self.income))
 
         # get possible locations to move
-        possible_locations = [all_locations[(x0+x)%N][(y0+y)%N] for x,y in zip(xs,ys)]
+        N, m_ = all_locations.shape
+        x0,y0 = self.location.coords
+        possible_locations = [all_locations[(x0+x)%N][(y0+y)%N] for x,y in choices]
 
         possible_location_scores = [self.score_location(l) for l in possible_locations]
         total_scores = [s['total_score'] for s in possible_location_scores]
@@ -119,7 +81,6 @@ class Agent:
         new_location = possible_locations[np.argmax(total_scores)]
         old_location = self.location
 
-        #new_location = random.choice(possible_locations)
         return old_location,new_location, possible_location_scores
 
     def score_location(self,location):
