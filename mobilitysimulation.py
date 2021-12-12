@@ -72,10 +72,15 @@ class MobilitySimulation(Simulation):
         self.locations = grid
 
         #initialize population density
-        clip_a, clip_b = np.min(capacities),np.max(capacities)
-        mean, std = 0.5, 0.5
-        a, b = (clip_a - mean) / std, (clip_b - mean) / std
-        preferred_pop_densities = truncnorm.rvs(a,b, size=num_agents)
+        min_cap, max_cap = np.min(capacities),np.max(capacities)
+        # mean, std = 0.5, 0.5
+        # a, b = (min_cap - mean) / std, (max_cap - mean) / std
+        # preferred_pop_densities = truncnorm.rvs(a,b, size=num_agents)
+
+        mean = np.log(np.mean(capacities.flatten()))
+        sigma = 0.25
+        self.preferred_pop_density_params = {'mean':mean,'sigma':sigma}
+        preferred_pop_densities = np.random.lognormal(mean=mean,sigma=sigma,size=num_agents)
 
         #initialize agents
         self.agents = []
@@ -235,7 +240,7 @@ if __name__ == "__main__":
 
     e = Experiment(
         MobilitySimulation,
-        'analayze2',
+        'analayze5',
         root_dir = 'data',
         grid_size=[20],
         num_steps = [1000],

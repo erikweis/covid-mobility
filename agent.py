@@ -11,8 +11,6 @@ from location import Location
 
 import logging
 
-LOG_PROBABILITY = 0.0001
-
 class Agent:
 
     """Agent object

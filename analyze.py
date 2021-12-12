@@ -13,6 +13,8 @@ import json
 from tqdm import tqdm
 import time
 
+from seaborn import kdeplot
+
 from matplotlib.image import AxesImage
 
 class SimulationAnalysis:
@@ -280,7 +282,6 @@ class SimulationAnalysis:
         df = self.merged_df.groupby(['time','locationID','income_bracket']).agg({'agentID':'count','xloc':'first','yloc':'first'})
         df.reset_index(inplace=True)
         df.rename(columns={'agentID':'count'},inplace=True)
-        print(df)
 
         for index, row in df.iterrows():
             ib = row['income_bracket']
@@ -314,8 +315,7 @@ class SimulationAnalysis:
         """animate population density"""
 
         filename = 'population_density_animation.mov'
-        if os.path.isfile(os.path.join(self.dirname,filename)):
-            print("file already created")
+        if self.check_existance(filename):
             return None
 
         data = self.get_data_for_animation_population_density(self.merged_df)
@@ -325,8 +325,7 @@ class SimulationAnalysis:
     def animate_occupancy(self):
 
         filename = 'occupancy_animation.mov'
-        if os.path.isfile(os.path.join(self.dirname,filename)):
-            print("file already created")
+        if self.check_existance(filename):
             return None
 
         data = self.get_data_for
@@ -418,7 +417,8 @@ class SimulationAnalysis:
 
         for col in df.columns:
             plt.plot(df[col],color='blue',alpha=0.1)
-        plt.savefig(os.path.join(self.dirname,filename),plot_title='Median Income for All Locations')
+            plt.title('Median Income for All Locations')
+        plt.savefig(os.path.join(self.dirname,filename))
 
 
     def plot_income_std(self):
@@ -437,7 +437,8 @@ class SimulationAnalysis:
         
         for col in df.columns:
             plt.plot(df[col],color='blue',alpha=0.1)
-        plt.savefig(os.path.join(self.dirname,filename),plot_title='Income Standard Deviation for All Locations')
+            plt.title('Income Standard Deviation for All Locations')
+        plt.savefig(os.path.join(self.dirname,filename))
 
 
     def calculate_move_distances(self):
@@ -644,7 +645,6 @@ class SimulationAnalysis:
         fig.colorbar(im0,ax=ax[0],shrink = 0.5)
 
         # normalized flows
-        print(self.calculate_capacities())
         im1 = ax[1].imshow(total_flows/self.calculate_capacities(),norm=colors.LogNorm())
         ax[1].set_title('Normalized Flows')
         fig.colorbar(im1,ax=ax[1],shrink=0.5)
@@ -854,66 +854,114 @@ class SimulationAnalysis:
             ax.plot(dat,label=ib)
 
         ax.legend()
+        plt.title('Average Location Score by Income Bracket')
         plt.savefig(os.path.join(self.dirname,filename))
 
 
     def plot_mean_pre_post_covid(self):
 
-        assert self.covid_intervention_time < self.num_steps
+        filename = 'median_income_pre_post_covid.png'
+        if self.check_existance(filename):
+            pass #return None
+
+        if self.covid_intervention_time > self.num_steps:
+            print("Not applicable")
+            return None
 
         df = self.merged_df.groupby(['time','locationID'])['income'].median().reset_index(name='median_income')
         df = pd.merge(df,self.locations_df,on='locationID')
         df = pd.pivot_table(df,index='time',columns='locationID',values='median_income')
         
+        # get location properties
         loc_df = self.locations_df
-        locID2capacity = {idx:cap for idx, cap in zip(loc_df['locationID'].values,loc_df['capacity'])}
 
+        quartile_labels = ['0-25%','25-50%','50-75%','75-100%']
+        loc_df['capacity_quartile'] = pd.qcut(loc_df['capacity'],q=4,labels=quartile_labels)
+        
+        locID2capacity = {idx:cap for idx, cap in zip(loc_df['locationID'].values,loc_df['capacity'])}
+        locID2capacityquartile = {idx:cap for idx, cap in zip(loc_df['locationID'].values,loc_df['capacity_quartile'])}
+
+        # data storage
         mean_of_medians_pre = []
         mean_of_medians_post = []
         caps = []
+        capquartile2diff = {k:[] for k in quartile_labels}
 
         cov = self.covid_intervention_time
 
         for locID in df.columns:
             vals = df[locID].values
             
-            mean_of_medians_pre.append(np.mean(vals[:cov]))
-            mean_of_medians_post.append(np.mean(vals[cov:]))
+            pre = np.mean(vals[:cov])
+            post = np.mean(vals[cov:])
+
+            mean_of_medians_pre.append(pre)
+            mean_of_medians_post.append(post)
             caps.append(np.sqrt(locID2capacity[locID]))
+            capquartile2diff[locID2capacityquartile[locID]].append(post-pre)
 
         caps = np.array(caps)
 
+        #### fig 1 ####
+
         fig, ax = plt.subplots(figsize=(7,7))
-        ax.scatter(mean_of_medians_pre,mean_of_medians_post,alpha=0.4,s=10*caps,c=caps)
+        s = ax.scatter(mean_of_medians_pre,mean_of_medians_post,alpha=0.4,s=10*caps,c=caps)
+        cbar = fig.colorbar(s,ax=ax,shrink=0.7)
+        cbar.set_label('Location Capacity')
+
         ax.set_xlabel('Median Income (pre-COVID)')
         ax.set_ylabel('Median Income (post-COVID)')
         ax.set_xlim(0,45000)
         ax.set_ylim(0,45000)
         ax.set_aspect('equal')
         ax.plot([0,45000],[0,45000],'--',color='black')
-        plt.show()
+
+        plt.savefig(os.path.join(self.dirname,filename))
+
+        #### fig 2 ####
+        filename2 = 'diff_median_income_by_capacity.png'
+
+        fig, ax = plt.subplots()
+
+        ps = [kdeplot(x,label = k) for k,x in capquartile2diff.items()]
+        plt.axvline(0,linestyle='--',color='black')
+        
+        plt.legend()
+        plt.savefig(os.path.join(self.dirname,filename2)) 
+
+
+
+
 
     def plot_capacity_preference_vs_availability(self):
 
-        capacities = self.locations_df['capacity']
-        loc_counts,bins = np.histogram(capacities,bins=40)
+        filename='capacity_preference_availability.png'
+        if self.check_existance(filename):
+            return None
+
+        caps = self.locations_df['capacity']
+        min_cap, max_cap = min(caps),max(caps)
+        loc_counts,bins = np.histogram(caps,bins=np.logspace(np.log10(min_cap),np.log10(max_cap), 30))
 
         spots_available = loc_counts*bins[1:]
 
         preferences = self.agents_df['pref_pop_density']
+
         pref_counts,bins = np.histogram(preferences,bins=bins)
 
-        plt.plot(spots_available)
-        plt.plot(pref_counts)
+        fig = plt.figure()
+
+        plt.plot(spots_available,'o-',label='Spots Available')
+        plt.plot(pref_counts,'o-',label='Number of Agents')
         plt.yscale('log')
+        plt.legend()
         plt.show()
         
         
-
 if __name__ == "__main__":
     
     foldername = 'trial_0'
-    experiment_name = 'analayze2'
+    experiment_name = 'analayze5'
 
     if not foldername:
         folders = [f for f in os.listdir('data/') if not f.startswith('.')]
@@ -922,34 +970,34 @@ if __name__ == "__main__":
 
     sa = SimulationAnalysis(experiment_name, foldername)
     print("loaded")
-    sa.plot_flows()
-    time.sleep(1)
-    sa.plot_capacity_distribution()
-    time.sleep(1)
-    sa.plot_capacities()
-    sa.plot_move_distance_distribution()
-    #sa.animate_population_density()
-    sa.animate_population_density_by_salary()
-    sa.plot_move_activity_by_income(smoothing=True)
-    #sa.plot_location_demographics(0)
-    sa.plot_median_incomes()
-    sa.plot_income_std()
+    # sa.plot_flows()
+    # time.sleep(1)
+    # sa.plot_capacity_distribution()
+    # time.sleep(1)
+    # sa.plot_capacities()
+    # sa.plot_move_distance_distribution()
+    # #sa.animate_population_density()
+    # sa.animate_population_density_by_salary()
+    # sa.plot_move_activity_by_income(smoothing=True)
+    # #sa.plot_location_demographics(0)
+    # sa.plot_median_incomes()
+    # sa.plot_income_std()
 
-    sa.plot_mean_location_score()
-    sa.plot_mean_move_decision_score()
+    # sa.plot_mean_location_score()
+    # sa.plot_mean_move_decision_score()
 
-    sa.animate_median_income()
-    sa.animate_std_income()
-    sa.animate_median_income_source_destination()
-    sa.plot_average_median_income_vs_standard_deviation_median_income()
-    sa.plot_agents_income_distribution()
+    # sa.animate_median_income()
+    # sa.animate_std_income()
+    # sa.animate_median_income_source_destination()
+    # sa.plot_average_median_income_vs_standard_deviation_median_income()
+    # sa.plot_agents_income_distribution()
 
-    sa.animate_median_income_capacity()
+    # sa.animate_median_income_capacity()
 
     sa.plot_location_score_by_income()
 
-    sa.animate_median_income_std_income()
+    # sa.animate_median_income_std_income()
 
     sa.plot_mean_pre_post_covid()
 
-    sa.plot_capacity_preference_vs_availability()
+    #sa.plot_capacity_preference_vs_availability()
