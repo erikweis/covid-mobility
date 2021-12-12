@@ -81,16 +81,24 @@ class MobilitySimulation(Simulation):
         self.agents = []
         for agentID, pop_dens in enumerate(preferred_pop_densities):
             
-            loc = np.random.choice(grid.flatten()) #,p=capacities.flatten()/sum(capacities.flatten()))
-            job = Job(idx = agentID,salary=np.random.exponential(scale=30000))
+            #calculate location
+            loc = np.random.choice(grid.flatten(), p=capacities.flatten()/sum(capacities.flatten()))
+            
+            #calculate salary
+            salary = np.random.exponential(scale=30000)
+            max_salary = 200000
+            salary = max_salary if salary> max_salary else salary
+            
+            job = Job(idx = agentID,salary=salary)
             a = Agent(agentID,loc,job,pref_pop_density = pop_dens)
             self.agents.append(a)
 
         #data
         self.agent_location_data = []
         self.move_data = []
-        self.location_score_data = []
+        self.possible_location_score_data = []
         self.move_decision_score_data = []
+        self.location_score_data = []
 
 
     @property
@@ -112,7 +120,15 @@ class MobilitySimulation(Simulation):
         move_dict = {'time':time,'fromlocID':old_loc.idx,'tolocID':new_loc.idx}
         for loc_score_dict in possible_location_scores:
             combo_dict = {**move_dict,**loc_score_dict}
-            self.location_score_data.append(combo_dict)
+            self.possible_location_score_data.append(combo_dict)
+
+        location_score_dict=  {
+            'time':time,
+            'agentID':agent.idx,
+            'locationID':new_loc.idx,
+            'total_score':agent.score_location(new_loc)['total_score'],
+        }
+        self.location_score_data.append(location_score_dict)
 
     def update(self,t):
 
@@ -165,7 +181,9 @@ class MobilitySimulation(Simulation):
 
         #global params
         fpath_params = os.path.join(self.dirname,'params.json')
-        global_params_to_ignore = ['locations','agents','data','location_score_data','move_decision_score_data','agent_location_data','move_data']
+        global_params_to_ignore = ['locations','agents','data','possible_location_score_data',\
+            'move_decision_score_data','agent_location_data','move_data',
+            'location_score_data']
         global_params = get_object_params(self,global_params_to_ignore)
         with open(fpath_params,'w') as f:
             json.dump(global_params,f)
@@ -185,21 +203,26 @@ class MobilitySimulation(Simulation):
             for row in self.move_data:
                 writer.writerow(row)
 
-        fpath_location_score_data = os.path.join(self.dirname,'location_score_data.csv')
-        df = pd.DataFrame(self.location_score_data)
-        df.to_csv(fpath_location_score_data)
+        # possible move scores
+        fpath_possible_location_score_data = os.path.join(self.dirname,'possible_location_score_data.csv')
+        df = pd.DataFrame(self.possible_location_score_data)
+        df.to_csv(fpath_possible_location_score_data)
 
+        # move decision scores
         fpath_move_decision_score_data = os.path.join(self.dirname,'move_decision_score_data.csv')
         df = pd.DataFrame(self.move_decision_score_data)
         agg = {
             'total_score':'mean',
             'score_housing_cost': 'mean'
         }
-            #        'score_income': 'mean',
-            #'score_income_match': 'mean',
-
         df = df.groupby('time').agg(agg)
         df.to_csv(fpath_move_decision_score_data)
+
+        #location score to measure "happiness"
+        fpath_location_score_data = os.path.join(self.dirname,'location_score_data.csv')
+        df = pd.DataFrame(self.location_score_data)
+        df.to_csv(fpath_location_score_data)
+
 
 
     def on_finish(self):
@@ -208,16 +231,17 @@ class MobilitySimulation(Simulation):
 
 if __name__ == "__main__":
 
-    random.seed(1)
+    random.seed(2)
 
     e = Experiment(
         MobilitySimulation,
-        'test',
+        'analayze2',
         root_dir = 'data',
         grid_size=[20],
-        num_steps = [5],
+        num_steps = [1000],
         num_agents = [10000],
-        covid_intervention_time = [250]
+        covid_intervention_time = [500],
+
     )
     e.run_all_trials(debug=True)
 
