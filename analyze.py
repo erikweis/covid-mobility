@@ -4,6 +4,7 @@ import numpy as np
 # matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from datetime import datetime
@@ -31,6 +32,10 @@ class SimulationAnalysis:
         with open(os.path.join(self.dirname,'agents.jsonl')) as f:
             self.agents_df = pd.DataFrame([json.loads(s) for s in f.readlines()])
             self.agents_df.rename(columns={'idx': 'agentID'}, inplace=True)
+            self.agents_df['income_bracket'] = pd.qcut(
+                self.agents_df['income'], 
+                q=5,
+                labels=['low','lower_mid','mid','upper_mid', 'high'])
 
         with open(os.path.join(self.dirname,'locations.jsonl')) as f:
             self.locations_df = pd.DataFrame([json.loads(s) for s in f.readlines()])
@@ -54,8 +59,14 @@ class SimulationAnalysis:
         return self._move_df
     
     @property
-    def location_score_df(self):
+    def possible_location_score_df(self):
         # load location score data
+        if not hasattr(self,'_possible_location_score_df'):
+            self._possible_location_score_df = pd.read_csv(os.path.join(self.dirname,'possible_location_score_data.csv'),index_col=[0])
+        return self._possible_location_score_df
+
+    @property
+    def location_score_df(self):
         if not hasattr(self,'_location_score_df'):
             self._location_score_df = pd.read_csv(os.path.join(self.dirname,'location_score_data.csv'),index_col=[0])
         return self._location_score_df
@@ -217,24 +228,6 @@ class SimulationAnalysis:
         writervideo = animation.FFMpegWriter(fps=10) 
         anim.save(f, writer=writervideo,progress_callback=self.progress_callback)
 
-
-    # def get_data_for_animation_population_density(self, df):
-
-    #     """Get data for animation. Population density is the number of agents at location (x,y) at time t.
-        
-    #     Returns array of dimension T x N x N for the purposes of using self.animate()
-    #     """
-
-    #     data = np.zeros((self.num_steps,self.grid_size,self.grid_size),dtype=int)
-
-    #     for index, row in tqdm(df.iterrows()):
-    #         t = row['time']
-    #         x = row['xloc']
-    #         y = row['yloc']
-    #         data[t][y][x] += 1
-
-    #     return data
-
     
     def get_data_for_animation_median_income(self):
 
@@ -281,8 +274,6 @@ class SimulationAnalysis:
         if self.check_existance(filename):
             return None
 
-        
-
         T, N = self.num_steps, self.grid_size
         data = {k:np.zeros((T,N,N),dtype=int) for k in self.merged_df['income_bracket'].unique()}
 
@@ -298,7 +289,7 @@ class SimulationAnalysis:
             
             if count>0:
                 xloc, yloc = int(row['xloc']),int(row['yloc'])
-                data[ib][t][xloc][yloc] = row['count']
+                data[ib][t][yloc][xloc] = row['count']
         
         data_array = list(data.values())
         plot_titles = list(data.keys())
@@ -346,8 +337,7 @@ class SimulationAnalysis:
         """animate median income at each location over time"""
 
         filename = "median_income_animation.mov"
-        if os.path.isfile(os.path.join(self.dirname,filename)):
-            print("file already created")
+        if self.check_existance(filename):
             return None
 
         data = self.get_data_for_animation_median_income()
@@ -360,12 +350,39 @@ class SimulationAnalysis:
         at a particular point in time."""
 
         filename = "std_income_animation.mov"
-        if os.path.isfile(os.path.join(self.dirname,filename)):
-            print("file already created")
+        if self.check_existance(filename):
             return None
 
         data = self.get_data_for_animation_std_income()
         self.animate(data,filename)
+
+
+    def animate_median_income_std_income(self):
+
+        filename = "median_income_std_income.mov"
+        if self.check_existance(filename):
+            return None
+
+        gb = self.merged_df.groupby(['time','locationID'])
+        df = gb.agg({'income':['std','median']}).reset_index()
+        
+        animation_data = [[] for _ in range(self.num_steps)]
+
+        for index, row in tqdm(df.iterrows()):
+
+            time = int(row['time'])
+            mi = row['income']['median']
+            std = row['income']['std']
+
+            animation_data[time].append([mi,std])
+
+        self.animate_scatter(
+            animation_data,
+            filename,
+            plot_title='Median Income vs. Standard Deviation Income',
+            xlabel='Median Income',
+            ylabel='Standard Deviation'
+        )
 
 
     def plot_location_demographics(self,locationID):
@@ -387,17 +404,6 @@ class SimulationAnalysis:
         plt.show()
 
 
-    def get_location_median_incomes(self):
-
-        """Returns dataframe with each column as the time-dependent median
-        income of a particular location. All locations are represented.
-        """
-
-        df = self.merged_df
-        df = df.groupby(['time','locationID'])['income'].median().reset_index(name='Median_Income')
-        return pd.pivot_table(df,index='time',columns='locationID',values='Median_Income')
-
-
     def plot_median_incomes(self):
 
         """Plot the median income time series for each location in the grid."""
@@ -406,20 +412,13 @@ class SimulationAnalysis:
         if self.check_existance(filename):
             return None
 
-        df = self.get_location_median_incomes()
+        df = self.merged_df
+        df = df.groupby(['time','locationID'])['income'].median().reset_index(name='Median_Income')
+        df = pd.pivot_table(df,index='time',columns='locationID',values='Median_Income')
+
         for col in df.columns:
             plt.plot(df[col],color='blue',alpha=0.1)
-        plt.savefig(os.path.join(self.dirname,filename))
-
-
-    def get_income_std(self):
-        
-        """[summary]
-        """
-
-        df = self.merged_df
-        df = df.groupby(['time','locationID'])['income'].std().reset_index(name='Income_Std')
-        return pd.pivot_table(df,index='time',columns='locationID',values='Income_Std')
+        plt.savefig(os.path.join(self.dirname,filename),plot_title='Median Income for All Locations')
 
 
     def plot_income_std(self):
@@ -431,10 +430,14 @@ class SimulationAnalysis:
         if self.check_existance(filename):
             return None
 
-        df = self.get_income_std()
+        # get data
+        df = self.merged_df
+        df = df.groupby(['time','locationID'])['income'].std().reset_index(name='Income_Std')
+        df = pd.pivot_table(df,index='time',columns='locationID',values='Income_Std')
+        
         for col in df.columns:
             plt.plot(df[col],color='blue',alpha=0.1)
-        plt.savefig(os.path.join(self.dirname,filename))
+        plt.savefig(os.path.join(self.dirname,filename),plot_title='Income Standard Deviation for All Locations')
 
 
     def calculate_move_distances(self):
@@ -495,6 +498,7 @@ class SimulationAnalysis:
             return None
 
         df = self.merged_move_df
+        df = df[df['fromlocID']!=df['tolocID']]
         df = df.groupby(['income_bracket','time']).size().reset_index(name='Count')
         df = pd.pivot_table(df, index='time',columns = 'income_bracket', values='Count')
         
@@ -580,6 +584,7 @@ class SimulationAnalysis:
 
         return total_flows, inflows, outflows
 
+
     def animate_flows(self):
 
         """The number of agents moving to and from a location at each timestep.
@@ -599,6 +604,7 @@ class SimulationAnalysis:
             plot_titles=np.array([['Inflows','Outflows','Total Flows']]),
             figsize=(10,4)
         )
+
 
     def plot_flows(self):
 
@@ -630,16 +636,22 @@ class SimulationAnalysis:
 
         total_flows = inflows+outflows
 
-        plt.clf()
-        fig, ax = plt.subplots(1,2)
+        fig, ax = plt.subplots(1,3,figsize=(10,4))
 
-        im0 = ax[0].imshow(total_flows)
+        # flows
+        im0 = ax[0].imshow(total_flows,norm=colors.LogNorm())
         ax[0].set_title('Total Flows')
         fig.colorbar(im0,ax=ax[0],shrink = 0.5)
 
-        im1 = ax[1].imshow(self.calculate_capacities())
-        ax[1].set_title('Location Capacities')
-        fig.colorbar(im1,ax=ax[1],shrink = 0.5)
+        # normalized flows
+        print(self.calculate_capacities())
+        im1 = ax[1].imshow(total_flows/self.calculate_capacities(),norm=colors.LogNorm())
+        ax[1].set_title('Normalized Flows')
+        fig.colorbar(im1,ax=ax[1],shrink=0.5)
+
+        im2 = ax[2].imshow(self.calculate_capacities())
+        ax[2].set_title('Location Capacities')
+        fig.colorbar(im1,ax=ax[2],shrink = 0.5)
 
         for a in ax.flatten():
             a.set_axis_off()
@@ -676,7 +688,7 @@ class SimulationAnalysis:
         if self.check_existance(filepath):
             return None
 
-        gb = self.location_score_df.groupby('time',as_index=False)
+        gb = self.possible_location_score_df.groupby('time',as_index=False)
 
         aggregations = {
             'total_score': 'mean',
@@ -700,6 +712,7 @@ class SimulationAnalysis:
         plt.title('Mean Location Scores at Each Time Step')
         plt.savefig(filepath)
 
+
     def plot_mean_move_decision_score(self):
 
         """At each time step agents decide where to move. Plot the average of these
@@ -722,9 +735,15 @@ class SimulationAnalysis:
         plt.legend()
         plt.savefig(filepath)
 
+
     def animate_median_income_source_destination(self):
 
-        median_income_df = self.get_location_median_incomes()
+        filename = 'median_income_source_destination.mov'
+        if self.check_existance(filename):
+            return None
+
+        df = self.merged_df.groupby(['time','locationID'])['income'].median().reset_index(name='Median_Income')
+        median_income_df = pd.pivot_table(df,index='time',columns='locationID',values='Median_Income')
 
         animation_data = [[] for _ in range(self.num_steps)]
 
@@ -736,7 +755,7 @@ class SimulationAnalysis:
             if fromlocID == tolocID:
                 continue
 
-            time = row['time']
+            time = int(row['time'])
 
             median_income_from = median_income_df[fromlocID][time]
             median_income_to = median_income_df[tolocID][time]
@@ -745,10 +764,11 @@ class SimulationAnalysis:
 
         self.animate_scatter(
             animation_data,
-            'median_income_source_destination.mov',
+            filename,
             plot_title='Median Income of Source and Destination',
             xlabel='Median Income of From Location',
             ylabel='Median Income of To Location')
+
 
     def plot_average_median_income_vs_standard_deviation_median_income(self):
 
@@ -759,7 +779,8 @@ class SimulationAnalysis:
         if self.check_existance(filename):
             return None
 
-        df = self.get_location_median_incomes() #data frame has columns representing median income at each time
+        df = self.merged_df.groupby(['time','locationID'])['income'].median().reset_index(name='Median_Income')
+        df = pd.pivot_table(df,index='time',columns='locationID',values='Median_Income')
 
         means, stds = [],[]
         for locID in df.columns:
@@ -795,7 +816,6 @@ class SimulationAnalysis:
 
         left = self.merged_df.groupby(['time','locationID'])['income'].median().reset_index(name='Median_Income')
         df = pd.merge(left,self.locations_df,on='locationID')
-
         
         animation_data = [[] for _ in range(self.num_steps)]
 
@@ -816,11 +836,84 @@ class SimulationAnalysis:
         )
 
 
+    def plot_location_score_by_income(self):
+
+        filename = 'location_scores_by_income.png'
+        if self.check_existance(filename):
+            return None
+
+        df = self.location_score_df
+        df = pd.merge(df,self.agents_df,on='agentID')
+        df = df.groupby(['time','income_bracket']).agg({'total_score':'mean'}).reset_index()
+        df = pd.pivot_table(df,index = 'time',columns='income_bracket',values='total_score')
+
+        fig, ax = plt.subplots()
+
+        for ib in df.columns:
+            dat = df[ib].rolling(window=40,min_periods=1).mean().values
+            ax.plot(dat,label=ib)
+
+        ax.legend()
+        plt.savefig(os.path.join(self.dirname,filename))
+
+
+    def plot_mean_pre_post_covid(self):
+
+        assert self.covid_intervention_time < self.num_steps
+
+        df = self.merged_df.groupby(['time','locationID'])['income'].median().reset_index(name='median_income')
+        df = pd.merge(df,self.locations_df,on='locationID')
+        df = pd.pivot_table(df,index='time',columns='locationID',values='median_income')
+        
+        loc_df = self.locations_df
+        locID2capacity = {idx:cap for idx, cap in zip(loc_df['locationID'].values,loc_df['capacity'])}
+
+        mean_of_medians_pre = []
+        mean_of_medians_post = []
+        caps = []
+
+        cov = self.covid_intervention_time
+
+        for locID in df.columns:
+            vals = df[locID].values
+            
+            mean_of_medians_pre.append(np.mean(vals[:cov]))
+            mean_of_medians_post.append(np.mean(vals[cov:]))
+            caps.append(np.sqrt(locID2capacity[locID]))
+
+        caps = np.array(caps)
+
+        fig, ax = plt.subplots(figsize=(7,7))
+        ax.scatter(mean_of_medians_pre,mean_of_medians_post,alpha=0.4,s=10*caps,c=caps)
+        ax.set_xlabel('Median Income (pre-COVID)')
+        ax.set_ylabel('Median Income (post-COVID)')
+        ax.set_xlim(0,45000)
+        ax.set_ylim(0,45000)
+        ax.set_aspect('equal')
+        ax.plot([0,45000],[0,45000],'--',color='black')
+        plt.show()
+
+    def plot_capacity_preference_vs_availability(self):
+
+        capacities = self.locations_df['capacity']
+        loc_counts,bins = np.histogram(capacities,bins=40)
+
+        spots_available = loc_counts*bins[1:]
+
+        preferences = self.agents_df['pref_pop_density']
+        pref_counts,bins = np.histogram(preferences,bins=bins)
+
+        plt.plot(spots_available)
+        plt.plot(pref_counts)
+        plt.yscale('log')
+        plt.show()
+        
+        
 
 if __name__ == "__main__":
     
     foldername = 'trial_0'
-    experiment_name = 'normal_pref_pop_dens2'
+    experiment_name = 'analayze2'
 
     if not foldername:
         folders = [f for f in os.listdir('data/') if not f.startswith('.')]
@@ -829,17 +922,16 @@ if __name__ == "__main__":
 
     sa = SimulationAnalysis(experiment_name, foldername)
     print("loaded")
-    sa.animate_flows()
     sa.plot_flows()
     time.sleep(1)
     sa.plot_capacity_distribution()
     time.sleep(1)
     sa.plot_capacities()
     sa.plot_move_distance_distribution()
-    sa.animate_population_density()
+    #sa.animate_population_density()
     sa.animate_population_density_by_salary()
     sa.plot_move_activity_by_income(smoothing=True)
-    sa.plot_location_demographics(0)
+    #sa.plot_location_demographics(0)
     sa.plot_median_incomes()
     sa.plot_income_std()
 
@@ -853,3 +945,11 @@ if __name__ == "__main__":
     sa.plot_agents_income_distribution()
 
     sa.animate_median_income_capacity()
+
+    sa.plot_location_score_by_income()
+
+    sa.animate_median_income_std_income()
+
+    sa.plot_mean_pre_post_covid()
+
+    sa.plot_capacity_preference_vs_availability()
