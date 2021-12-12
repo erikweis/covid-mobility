@@ -10,8 +10,10 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from datetime import datetime
 import os
 import json
+from pandas.core.frame import DataFrame
 from tqdm import tqdm
 import time
+from inequality.gini import Gini
 
 from seaborn import kdeplot
 
@@ -309,13 +311,7 @@ class SimulationAnalysis:
         self.multi_animate(data_array, filename,plot_titles = plot_titles,figsize=(8,10))
 
 
-    def animate_population_density(self):
-
-        """animate population density"""
-
-        filename = 'population_density_animation.mov'
-        if self.check_existance(filename):
-              return None
+    def get_population_density_occupancy_data(self):
 
         T, N = self.num_steps, self.grid_size
         data = np.zeros((T,N,N),dtype=int)
@@ -337,8 +333,21 @@ class SimulationAnalysis:
                 data[t][yloc][xloc] = row['count']
                 data_occupancy[t][yloc][xloc] = row['count']/locID2capacity[row['locationID']]
 
-        data_array = np.array([[data,data_occupancy]])
+        return data, data_occupancy
+
+    def animate_population_density(self):
+
+        """animate population density"""
+
+        filename = 'population_density_animation.mov'
+        if self.check_existance(filename):
+              return None
+
+        data, data_occupancy = self.get_population_density_occupancy_data()
+        
         plot_titles = np.array([['Population Density','Occupancy']])
+        data_array = np.array([[data,data_occupancy]])
+
 
         self.multi_animate(data_array,filename,plot_titles=plot_titles)
 
@@ -985,9 +994,26 @@ class SimulationAnalysis:
 
         return delta_loc_scores
 
-    def get_inequality_score(self):
-        pass
 
+    def get_inequality_scores(self):
+        
+        df = self.merged_df.groupby(['time','locationID']).agg({'income':'mean'}).reset_index()
+
+        test = self.merged_df.groupby(['time','locationID'])['income'].agg(list)
+        print(test)
+
+        df = pd.pivot_table(df,index='locationID',columns='time',values='income')
+
+        ginis = []
+        for t in tqdm(df.columns):
+            ginis.append(Gini(df[t].values).g)
+
+        fig = plt.figure()
+        plt.title('Gini Coefficient of Per Capita Income')
+        plt.plot(ginis)
+        plt.xlabel('time')
+        plt.ylabel('Gini Coefficient')
+        plt.show()
 
     def inequality_2020(self, values):
         top20, bottom20 = values.quantile([0.8, 0.2])
@@ -1026,6 +1052,49 @@ class SimulationAnalysis:
         data = self.get_data_for_animation_mean_income()
         self.animate(data, filename, plot_title = 'Inequality')
 
+    def plot_occupancy_pre_post_covid(self):
+
+        filename = 'occupancy_pre_post_covid.png'
+        if self.check_existance(filename):
+            return None
+
+        df = self.merged_df.groupby(['time','locationID']).agg({'agentID':'count'}).reset_index()
+        df = pd.merge(df,self.locations_df,on='locationID')
+        df.rename(columns={'agentID':'count'},inplace=True)
+        df['occupancy'] = df.apply(lambda x:x['count']/x['capacity'],axis=1)
+        
+        df = pd.pivot_table(df,index='time',columns='locationID',values='occupancy')
+
+        loc_df = self.locations_df
+        locID2capacity = {idx:cap for idx, cap in zip(loc_df['locationID'].values,loc_df['capacity'])}
+
+        occ_pre = []
+        occ_post = []
+        caps = []
+        for locID in df.columns:
+            
+            vals = df[locID].values
+            occ_pre.append(np.mean(vals[:self.covid_intervention_time]))
+            occ_post.append(np.mean(vals[self.covid_intervention_time:]))
+            caps.append(locID2capacity[locID])
+
+        caps = np.array(caps)
+
+        fig, ax = plt.subplots(figsize=(7,7))
+
+        s = ax.scatter(occ_pre,occ_post,alpha=0.4,s=10*caps,c=caps)
+        cbar = fig.colorbar(s,ax=ax,shrink=0.7)
+        cbar.set_label('Location Capacity')
+
+        ax.set_xlabel('Mean Occupancy (pre-COVID)')
+        ax.set_ylabel('Mean Occupancy (post-COVID)')
+        ax.set_aspect('equal')
+        ax.set_xlim(0,1.1)
+        ax.set_ylim(0,1.1)
+        ax.plot([0,1.2],[0,1.2],'--',color='black')
+
+        plt.savefig(os.path.join(self.dirname,filename))
+
         
 if __name__ == "__main__":
     
@@ -1039,36 +1108,40 @@ if __name__ == "__main__":
 
     sa = SimulationAnalysis(experiment_name, foldername)
     print("loaded")
-    sa.plot_flows()
-    time.sleep(1)
-    sa.plot_capacity_distribution()
-    time.sleep(1)
-    sa.plot_capacities()
-    sa.plot_move_distance_distribution()
-    sa.animate_population_density()
-    sa.animate_population_density_by_salary()
-    sa.plot_move_activity_by_income(smoothing=True)
-    #sa.plot_location_demographics(0)
-    sa.plot_median_incomes()
-    sa.plot_income_std()
+    # sa.plot_flows()
+    # time.sleep(1)
+    # sa.plot_capacity_distribution()
+    # time.sleep(1)
+    # sa.plot_capacities()
+    # sa.plot_move_distance_distribution()
+    # sa.animate_population_density()
+    # sa.animate_population_density_by_salary()
+    # sa.plot_move_activity_by_income(smoothing=True)
+    # #sa.plot_location_demographics(0)
+    # sa.plot_median_incomes()
+    # sa.plot_income_std()
 
-    sa.plot_mean_location_score()
-    sa.plot_mean_move_decision_score()
+    # sa.plot_mean_location_score()
+    # sa.plot_mean_move_decision_score()
 
-    sa.animate_median_income()
-    sa.animate_std_income()
-    sa.animate_median_income_source_destination()
-    sa.plot_average_median_income_vs_standard_deviation_median_income()
-    sa.plot_agents_income_distribution()
+    # sa.animate_median_income()
+    # sa.animate_std_income()
+    # sa.animate_median_income_source_destination()
+    # sa.plot_average_median_income_vs_standard_deviation_median_income()
+    # sa.plot_agents_income_distribution()
 
-    # sa.animate_median_income_capacity()
+    # # sa.animate_median_income_capacity()
 
-    sa.plot_location_score_by_income()
+    # sa.plot_location_score_by_income()
 
-    # sa.animate_median_income_std_income()
+    # # sa.animate_median_income_std_income()
 
-    sa.plot_mean_pre_post_covid()
+    # sa.plot_mean_pre_post_covid()
 
-    sa.plot_capacity_preference_vs_availability()
+    # sa.plot_capacity_preference_vs_availability()
 
-    sa.get_difference_location_score()
+    # sa.get_difference_location_score()
+
+    #sa.get_inequality_scores()
+
+    sa.plot_occupancy_pre_post_covid()
