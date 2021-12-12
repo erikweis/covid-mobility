@@ -1024,13 +1024,8 @@ class SimulationAnalysis:
         """Get data for animation. Array has values [t][y][x] which correspond to the 
         mean income at location (x,y) at time t.
         """
-        # Filter out the data for low and high income brackets
-        # low = self.merged_df[self.merged_df['income_bracket'] == 'low']
-        # high = self.merged_df[self.merged_df['income_bracket'] == 'high']
-
-        income_df = self.merged_df.groupby(['time', 'locationID'])['income']
-        top20, bottom20 = income_df['income'].quantile([.8, .2])
-        income_df['inequality_score'] = top20/bottom20
+        income_df = self.merged_df.groupby(['time', 'locationID'])['income'].quantile([0.8, 0.2])
+        income_df['inequality_score'] = income_df[0.8] / income_df[0.2]
         df = pd.merge(income_df, self.locations_df, on='locationID')
 
         data = np.zeros((self.num_steps, self.grid_size, self.grid_size))
