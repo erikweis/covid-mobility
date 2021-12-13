@@ -1024,9 +1024,10 @@ class SimulationAnalysis:
         """Get data for animation. Array has values [t][y][x] which correspond to the 
         mean income at location (x,y) at time t.
         """
-        income_df = self.merged_df.groupby(['time', 'locationID'])['income'].quantile([0.8, 0.2])
+        income_df = self.merged_df.groupby(['time', 'locationID'])['income'].quantile([0.8, 0.2]).unstack()
         income_df['inequality_score'] = income_df[0.8] / income_df[0.2]
-        df = pd.merge(income_df, self.locations_df, on='locationID')
+        income_df_ungrouped = income_df.reset_index()
+        df = pd.merge(income_df_ungrouped, self.locations_df, on='locationID')
 
         data = np.zeros((self.num_steps, self.grid_size, self.grid_size))
 
@@ -1044,7 +1045,7 @@ class SimulationAnalysis:
         if self.check_existance(filename):
             return None
         
-        data = self.get_data_for_animation_mean_income()
+        data = self.get_data_for_animation_inequality()
         self.animate(data, filename, plot_title = 'Inequality')
 
     def plot_occupancy_pre_post_covid(self):
@@ -1137,6 +1138,8 @@ if __name__ == "__main__":
 
     # sa.get_difference_location_score()
 
-    #sa.get_inequality_scores()
+    # sa.get_inequality_scores()
 
-    sa.plot_occupancy_pre_post_covid()
+    # sa.plot_occupancy_pre_post_covid()
+
+    # sa.animate_population_inequality()
