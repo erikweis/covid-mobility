@@ -13,7 +13,8 @@ import json
 from pandas.core.frame import DataFrame
 from tqdm import tqdm
 import time
-from inequality.gini import Gini
+from inequality.gini import Gini, Gini_Spatial
+from libpysal.weights import lat2W
 
 from seaborn import kdeplot
 
@@ -149,7 +150,7 @@ class SimulationAnalysis:
         anim.save(f, writer=writervideo,progress_callback=self.progress_callback)
 
 
-    def multi_animate(self,data_array,fout_name, plot_presence = None, plot_titles = None,figsize=(8,8)):
+    def multi_animate(self,data_array,fout_name, plot_presence = None, plot_titles = None,colorbar_ranges = None, figsize=(8,8)):
 
         """Pass in a (rows,cols) array of animation data arrays, each with dimension T x N x N. This
         is equivalent to passing an array of dimension (row,cols,T,N,N)
@@ -184,7 +185,11 @@ class SimulationAnalysis:
                     axes[i][j].set_title(plot_titles[i][j])
 
                     if t==0:
-                        ims[i][j] = axes[i][j].imshow(data_array[i][j][t])
+                        if colorbar_ranges and colorbar_ranges[i][j]:
+                            mi,ma = colorbar_ranges[i][j]
+                        else:
+                            mi,ma = None,None
+                        ims[i][j] = axes[i][j].imshow(data_array[i][j][t],vmin=mi,vmax=ma)
                     else:
                         ims[i][j].set_array(data_array[i][j][t])
             return ims
@@ -192,6 +197,8 @@ class SimulationAnalysis:
         ims = set_data(0)
         for ax in axes.flatten():
             ax.set_axis_off()
+
+        
         for im,ax in zip(ims.flatten(),axes.flatten()):
             fig.colorbar(im,ax=ax,shrink=0.6)
 
@@ -348,8 +355,7 @@ class SimulationAnalysis:
         plot_titles = np.array([['Population Density','Occupancy']])
         data_array = np.array([[data,data_occupancy]])
 
-
-        self.multi_animate(data_array,filename,plot_titles=plot_titles)
+        self.multi_animate(data_array,filename,plot_titles=plot_titles,colorbar_ranges = [[None, (0,1)]],figsize=(10,4))
 
  
     def animate_median_income(self):
@@ -1004,15 +1010,29 @@ class SimulationAnalysis:
 
         df = pd.pivot_table(df,index='locationID',columns='time',values='income')
 
-        ginis = []
-        for t in tqdm(df.columns):
-            ginis.append(Gini(df[t].values).g)
+        N = self.grid_size
+        w = lat2W(N,N)
 
-        fig = plt.figure()
-        plt.title('Gini Coefficient of Per Capita Income')
-        plt.plot(ginis)
-        plt.xlabel('time')
-        plt.ylabel('Gini Coefficient')
+        gini_spatials = []
+        for t in tqdm(df.columns):
+            gs = Gini_Spatial(df[t].values,w)
+            gini_spatials.append({'g':gs.g,'near':gs.wg,'far':gs.wcg,'p_sim':gs.p_sim})
+
+        df = pd.DataFrame(gini_spatials)
+
+        fig,ax = plt.subplots()
+
+        ax.set_title('Spatial Gini Coefficient of Per Capita Income')
+        ax.plot(df['p_sim'],label='P_sim')
+
+        ax2 = ax.twinx()
+        #ax3 = ax.twinx()
+        ax2.plot(df['near'],label='near')
+        #ax3.plot(df['far'],label='far')
+        ax.set_xlabel('time')
+        ax.set_ylabel('Gini Coefficient')
+        ax2.set_ylabel('Spatial Gini Coefficient')
+        plt.legend()
         plt.show()
 
     def inequality_2020(self, values):
@@ -1110,14 +1130,14 @@ if __name__ == "__main__":
     # time.sleep(1)
     # sa.plot_capacities()
     # sa.plot_move_distance_distribution()
-    # sa.animate_population_density()
-    # sa.animate_population_density_by_salary()
+    sa.animate_population_density()
+    # #sa.animate_population_density_by_salary()
     # sa.plot_move_activity_by_income(smoothing=True)
     # #sa.plot_location_demographics(0)
     # sa.plot_median_incomes()
     # sa.plot_income_std()
 
-    # sa.plot_mean_location_score()
+    #sa.plot_mean_location_score()
     # sa.plot_mean_move_decision_score()
 
     # sa.animate_median_income()
@@ -1138,7 +1158,7 @@ if __name__ == "__main__":
 
     # sa.get_difference_location_score()
 
-    # sa.get_inequality_scores()
+    #sa.get_inequality_scores()
 
     # sa.plot_occupancy_pre_post_covid()
 

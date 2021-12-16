@@ -50,7 +50,8 @@ class Agent:
             'score_housing_cost': score_housing_cost
         }
 
-        decision = (random.random() < self._score2moveprob(total_score))
+        #decision = (random.random() < self._score2moveprob(total_score))
+        decision = random.random() < 0.01
 
         return decision, score_dict
 
@@ -76,12 +77,12 @@ class Agent:
         return old_location, new_location, possible_location_scores
 
 
-    def score_location(self,location,coeff_job_opp = 3,**kwargs):
+    def score_location(self,location,**kwargs):
         
-        coeff_pop_dens = 1
-        coeff_job_opp = coeff_job_opp
+        coeff_pop_dens = 3
+        coeff_job_opp = 2
         coeff_median_income = 5*10**(-4)
-        coeff_housing_cost = 0.01
+        coeff_housing_cost = 2
 
         # does the location align with agents preferred population density
         score_pop_dens = -coeff_pop_dens*abs(location.capacity-self.pref_pop_density)
@@ -95,8 +96,18 @@ class Agent:
         # score housing cost
         score_housing_cost = -coeff_housing_cost*self.location.housing_cost()/self.income
         
-
-        total_score = score_pop_dens + score_job_opp + score_median_income + score_housing_cost
+        if 'location_score_weights' in kwargs and kwargs['location_score_weights'] is not None:
+            weights = kwargs['location_score_weights']
+        else:
+            weights = {
+                'pop_dens':1,
+                'job_opp':1,
+                'median_income':1,
+                'housing_cost':1
+            }
+        
+        total_score = weights['pop_dens']*score_pop_dens + weights['job_opp']*score_job_opp + \
+                      weights['median_income']*score_median_income + weights['housing_cost']*score_housing_cost
 
         scoredict = {
             'total_score':total_score,

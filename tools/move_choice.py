@@ -71,31 +71,31 @@ def plot_example_choices():
 
 def plot_example_move_distirbution_by_income():
 
-    rows,cols = 6,6
+    rows,cols = 1,5
     N = 40
     x0,y0=10,10
 
-    incomes = np.linspace(200,200000,rows)
+    incomes = [1000,20000,60000,100000,200000]
     
-    fig, axes = plt.subplots(rows,cols,figsize=(9,9))
+    fig, axes = plt.subplots(rows,cols,figsize=(9,4))
 
-    for i in range(rows):
-        for j in range(cols):
+    for i in range(cols):
+        #for j in range(cols):
             
-            move_options = np.zeros((N,N))
+        move_options = np.zeros((N,N))
 
-            choices = get_relative_move_coordinates(*get_move_choice_params(incomes[i]))
-            for x,y in choices:
-                move_options[(x0+x)%N][(y0+y)%N]=1
+        choices = get_relative_move_coordinates(*get_move_choice_params(incomes[i]))
+        for x,y in choices:
+            move_options[(x0+x)%N][(y0+y)%N]=1
 
-            axes[i][j].imshow(move_options)
-            axes[i][j].set_xticks([])
-            axes[i][j].set_yticks([])
+        axes[i].imshow(move_options)
+        axes[i].set_xticks([])
+        axes[i].set_yticks([])
+        axes[i].set_title(f'Income: {int(incomes[i])}')
 
             # if j == 0:
             #     axes[i][j].set_ylabel(int(incomes[i]))
 
-    plt.suptitle('Example Move Possiblities by Income')
     plt.tight_layout()
     plt.savefig('move_possibilities_by_income.png')
 

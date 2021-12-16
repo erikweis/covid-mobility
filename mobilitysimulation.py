@@ -41,6 +41,8 @@ class MobilitySimulation(Simulation):
         num_steps:int = 500,
         proportion_remote_workers: float = 1.0,
         covid_intervention_time = None,
+        reopening_time = None,
+        reopening_style = 'sharp',
         **kwargs
     ): 
 
@@ -55,11 +57,12 @@ class MobilitySimulation(Simulation):
         self.num_steps = num_steps
         self.proportion_remote_workers = proportion_remote_workers
         self.covid_intervention_time = covid_intervention_time
+        self.reopening_time = reopening_time
         for k,v in kwargs.items():
             setattr(self,k,v)
         
         #initialize locations
-        total_occupancy = 0.90
+        total_occupancy = 0.9 if not hasattr(self,'total_occupancy') else self.total_occupancy
         total_capacity = num_agents/total_occupancy
         num_cities = int(grid_size**2/10)
         capacities = get_initial_capacities(grid_size,num_cities,total_capacity)
@@ -121,7 +124,10 @@ class MobilitySimulation(Simulation):
 
     def move_agent(self,agent,time):
 
-        old_loc, new_loc, possible_location_scores = agent.decide_where_to_move(self.locations)
+        #move score params
+        weights = None if not hasattr(self,'location_score_weights') else self.location_score_weights
+
+        old_loc, new_loc, possible_location_scores = agent.decide_where_to_move(self.locations,location_score_weights=weights)
         agent.location = new_loc #update agent location
         old_loc.remove_agent(agent) #remove agent from old location
         new_loc.add_agent(agent) #add agent to new location
@@ -144,6 +150,16 @@ class MobilitySimulation(Simulation):
                 if random.random() < self.proportion_remote_workers:
                     agent.job.remote_status = True
         
+        if hasattr(self,'reopening_time') and t >= self.reopening_time:
+            if self.reopening_style=='abrupt':
+                if t == self.reopening_time:
+                    for agent in self.agents:
+                        agent.job.remote_status=False
+            elif self.reopening_style=='gradual':
+                for agent in self.agents:
+                    if random.random() < 0.01:
+                        agent.job.remote_status= False
+
         #loop over agents
         for agent in self.agents:
             decision, score_dict = agent.decide_to_move()
@@ -247,15 +263,25 @@ if __name__ == "__main__":
 
     random.seed(2)
 
+    weights = {
+        'pop_dens':1,
+        'job_opp':1,
+        'median_income':1,
+        'housing_cost':1
+    }
+    
+
     e = Experiment(
         MobilitySimulation,
-        'state_of_art',
+        'occupancy_sweep',
         root_dir = 'data',
         grid_size=[20],
-        num_steps = [1000],
+        num_steps = [500],
         num_agents = [10000],
-        covid_intervention_time = [500],
+        covid_intervention_time = [None],
         income_distribution = ['power'],
+        location_score_weights=[weights],
+        total_occupancy = np.linspace(0.5,0.95,10)
     )
     e.run_all_trials(debug=True)
 
