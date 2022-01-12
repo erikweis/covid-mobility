@@ -17,11 +17,12 @@ import os
 import json
 from pandas.core.frame import DataFrame
 from tqdm import tqdm
-import time
-from inequality.gini import Gini, Gini_Spatial
-from libpysal.weights import lat2W
-
-from seaborn import kdeplot
+try:
+    from inequality.gini import Gini, Gini_Spatial
+    from libpysal.weights import lat2W
+    from seaborn import kdeplot
+except:
+    pass
 
 from matplotlib.image import AxesImage
 
