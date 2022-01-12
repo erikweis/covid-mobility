@@ -6,7 +6,6 @@ import os
 import datetime
 import csv
 import json
-import networkx as nx
 import copy
 import pandas as pd
 from scipy.stats import truncnorm
