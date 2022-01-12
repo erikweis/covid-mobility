@@ -127,5 +127,6 @@ class Agent:
         self._location= new_location
 
     def get_tidy_state(self):
-        return self.idx, self.location.idx, *self.location.coords
+        x,y = self.locationlcoords
+        return self.idx, self.location.idx, x, y
         
