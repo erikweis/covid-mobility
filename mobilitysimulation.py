@@ -13,7 +13,7 @@ from scipy.stats import truncnorm
 try:
     from parameter_sweep import Simulation, Experiment
 except:
-    pass
+    Simulation = object
 
 from agent import Agent
 from job import Job

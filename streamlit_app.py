@@ -8,6 +8,8 @@ from mobilitysimulation import MobilitySimulation
 from analyze import SimulationAnalysis
 
 
+
+
 def get_markdown_text(fname):
     md_dir = 'streamlit_app_data/text/'
     return open(md_dir+fname).read()
