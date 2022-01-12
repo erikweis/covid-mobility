@@ -1,0 +1,1 @@
+{"num_agents": 5000, "grid_size": 20, "num_steps": 500, "proportion_remote_workers": 1.0, "covid_intervention_time": 250, "income_distribution": "power", "location_score_weights": {"pop_dens": 1, "job_opp": 1, "median_income": 1, "housing_cost": 1}, "total_occupancy": 0.9, "preferred_pop_density_params": {"mean": 2.6331470410755258, "sigma": 0.25}}
