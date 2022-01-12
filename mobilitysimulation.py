@@ -10,7 +10,10 @@ import copy
 import pandas as pd
 from scipy.stats import truncnorm
 
-from parameter_sweep import Simulation, Experiment
+try:
+    from parameter_sweep import Simulation, Experiment
+except:
+    pass
 
 from agent import Agent
 from job import Job
