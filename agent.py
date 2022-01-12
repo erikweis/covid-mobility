@@ -50,8 +50,8 @@ class Agent:
             'score_housing_cost': score_housing_cost
         }
 
-        #decision = (random.random() < self._score2moveprob(total_score))
-        decision = random.random() < 0.01
+        decision = (random.random() < self._score2moveprob(total_score))
+        #decision = random.random() < 0.01
 
         return decision, score_dict
 

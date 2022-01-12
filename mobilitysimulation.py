@@ -41,8 +41,6 @@ class MobilitySimulation(Simulation):
         num_steps:int = 500,
         proportion_remote_workers: float = 1.0,
         covid_intervention_time = None,
-        reopening_time = None,
-        reopening_style = 'sharp',
         **kwargs
     ): 
 
@@ -57,7 +55,6 @@ class MobilitySimulation(Simulation):
         self.num_steps = num_steps
         self.proportion_remote_workers = proportion_remote_workers
         self.covid_intervention_time = covid_intervention_time
-        self.reopening_time = reopening_time
         for k,v in kwargs.items():
             setattr(self,k,v)
         
@@ -100,7 +97,7 @@ class MobilitySimulation(Simulation):
         for agentID in range(self.num_agents):
             
             #calculate location
-            loc = np.random.choice(grid.flatten(), p=capacities.flatten()/sum(capacities.flatten()))
+            loc = np.random.choice(grid.flatten(), p=capacities.flatten()/np.sum(capacities.flatten()))
             
             salary = incomes[agentID]
             pop_dens = preferred_pop_densities[agentID]
@@ -149,16 +146,6 @@ class MobilitySimulation(Simulation):
             for agent in self.agents:
                 if random.random() < self.proportion_remote_workers:
                     agent.job.remote_status = True
-        
-        if hasattr(self,'reopening_time') and t >= self.reopening_time:
-            if self.reopening_style=='abrupt':
-                if t == self.reopening_time:
-                    for agent in self.agents:
-                        agent.job.remote_status=False
-            elif self.reopening_style=='gradual':
-                for agent in self.agents:
-                    if random.random() < 0.01:
-                        agent.job.remote_status= False
 
         #loop over agents
         for agent in self.agents:

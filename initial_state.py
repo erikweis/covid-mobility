@@ -53,7 +53,9 @@ def plot_capacity_distribution(caps):
 
 if __name__ == "__main__":
 
-    caps = get_initial_capacities(50,100,100000)
+    caps = get_initial_capacities(20,100,1000)
+
+    print(caps)
 
     plot_capacities(caps)
     #plot_capacity_distribution(caps)

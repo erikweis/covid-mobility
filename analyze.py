@@ -22,10 +22,16 @@ from matplotlib.image import AxesImage
 
 class SimulationAnalysis:
 
-    def __init__(self, experiment_name, folder_name):
+    def __init__(self, experiment_name=None, folder_name=None, dirname = None,override_plots = False):
 
         #the working directory of this particular simulation
-        self.dirname = os.path.join('data',experiment_name,folder_name)
+        if not dirname:
+            self.dirname = os.path.join('data',experiment_name,folder_name)
+        else:
+            self.dirname = dirname
+
+        # override old plots automatically
+        self.override_plots = override_plots
 
         #set all meta parameters to object attributes
         with open(os.path.join(self.dirname,'params.json'),'r') as f:
@@ -113,7 +119,7 @@ class SimulationAnalysis:
 
         """helper function to avoid reduntanly generating plot images and videos."""
 
-        if os.path.isfile(os.path.join(self.dirname,fname)):
+        if os.path.isfile(os.path.join(self.dirname,fname)) and not self.override_plots:
             print(f"File {fname} already exists")
             return True
         return False
