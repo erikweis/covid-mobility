@@ -1,7 +1,12 @@
 import pandas as pd
 import numpy as np
-# import matplotlib
-# matplotlib.use('agg')
+
+#non-interactive backend for streamlit
+import matplotlib
+matplotlib.use('agg')
+from matplotlib.backends.backend_agg import RendererAgg
+_lock = RendererAgg.lock
+
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.colors as colors

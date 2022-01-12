@@ -1,3 +1,4 @@
 inequality
 numpy
 scipy
+matplotlib
